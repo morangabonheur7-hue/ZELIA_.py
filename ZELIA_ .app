@@ -12,8 +12,8 @@ import os
 import requests
 import streamlit.components.v1 as components
 
-PADDLE_VENDOR_ID = "TON_VENDOR_ID"
-PADDLE_PRICE_ID = "TON_PRICE_ID"
+PADDLE_VENDOR_ID = "345487"
+PADDLE_PRICE_ID = ""pri_01ksk58k14szw6a8dys7y7as0r""
 
 # --- CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="ZELIA - Sourcing Clients", page_icon="🚀", layout="wide")
