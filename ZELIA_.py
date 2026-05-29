@@ -56,25 +56,41 @@ div.stButton > button { background: linear-gradient(135deg, #00A86B 0%, #007d50 
 # BASE DE DONNÉES
 # ==========================================
 DB_NAME = "clients.db"
-def get_connection(): return sqlite3.connect(DB_NAME, check_same_thread=False)
+def get_connection(): 
+    return sqlite3.connect(DB_NAME, check_same_thread=False)
 
 def initialiser_bdd():
     conn = get_connection()
     c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS utilisateurs (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, device_id TEXT, Paddle_actif INTEGER DEFAULT 0, service_choisi TEXT DEFAULT 'Tous', pays_choisi TEXT DEFAULT 'Tous')")
-    c.execute("CREATE TABLE IF NOT EXISTS opportunites (id INTEGER PRIMARY KEY AUTOINCREMENT, titre TEXT, ville TEXT, pays TEXT DEFAULT 'Global', niche TEXT, lien TEXT, date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    c.execute("""CREATE TABLE IF NOT EXISTS utilisateurs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    email TEXT UNIQUE, 
+                    password TEXT, 
+                    device_id TEXT, 
+                    Paddle_actif INTEGER DEFAULT 0, 
+                    service_choisi TEXT DEFAULT 'Tous', 
+                    pays_choisi TEXT DEFAULT 'Tous')""")
+    c.execute("""CREATE TABLE IF NOT EXISTS opportunites (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    titre TEXT, 
+                    ville TEXT, 
+                    pays TEXT DEFAULT 'Global', 
+                    niche TEXT, 
+                    lien TEXT UNIQUE, 
+                    date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     conn.commit()
     conn.close()
 initialiser_bdd()
 
 def extraire_logo_base64(chemin_fichier):
     if os.path.exists(chemin_fichier):
-        with open(chemin_fichier, "rb") as f: return base64.b64encode(f.read()).decode()
+        with open(chemin_fichier, "rb") as f: 
+            return base64.b64encode(f.read()).decode()
     return None
 
-# --- FONCTION DU ROBOT INTEGRÉ DIRECTEMENT ---
+# --- FONCTION DU ROBOT RECORRIGÉE ---
 def executer_robot_instantane(pays, métier):
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     p_cible = "France" if pays == "Tous" else pays
     m_cible = "Plombier" if métier == "Tous" else métier
     langue = PAYS_LANGUES.get(p_cible, "fr")
@@ -87,35 +103,42 @@ def executer_robot_instantane(pays, métier):
     with httpx.Client(headers=headers, follow_redirects=True) as client:
         for ville in villes:
             phrase = f'"je cherche un {mot_traduit}" {ville}' if langue == "fr" else f'"looking for {mot_traduit}" {ville}'
+            # Correction de l'url pour l'extraction HTML DuckDuckGo
             url = f"https://duckduckgo.com{urllib.parse.quote(phrase)}"
             try:
-                res = client.get(url, timeout=5.0)
+                res = client.get(url, timeout=10.0)
                 if res.status_code == 200:
                     soup = BeautifulSoup(res.text, "html.parser")
-                    for body in soup.find_all("div", class_="result__body")[:3]:
-                        snippet = body.find("a", class_="result__snippet")
-                        lien_h = body.find("a", class_="result__url")
-                        if snippet and lien_h:
-                            if any(m in snippet.text.lower() for m in EMPREINTES_LANGUES[langue]):
-                                c.execute("SELECT id FROM opportunites WHERE lien = ?", (lien_h["href"],))
-                                if not c.fetchone():
-                                    c.execute("INSERT INTO opportunites (titre, ville, pays, niche, lien) VALUES (?, ?, ?, ?, ?)", (snippet.text[:120]+"...", ville, p_cible, m_cible, lien_h["href"]))
+                    for body in soup.find_all("div", class_="result__body")[:5]:
+                        snippet_el = body.find("a", class_="result__snippet")
+                        lien_el = body.find("a", class_="result__url")
+                        
+                        if snippet_el and lien_el:
+                            snippet_text = snippet_el.get_text()
+                            lien_url = lien_el.get("href", "")
+                            
+                            if any(m in snippet_text.lower() for m in EMPREINTES_LANGUES[langue]):
+                                try:
+                                    c.execute("INSERT INTO opportunites (titre, ville, pays, niche, lien) VALUES (?, ?, ?, ?, ?)", 
+                                              (snippet_text[:120]+"...", ville, p_cible, m_cible, lien_url))
+                                except sqlite3.IntegrityError:
+                                    pass # Lien déjà existant
                 conn.commit()
-            except Exception: pass
+            except Exception: 
+                pass
     conn.close()
 
 # ==========================================
-# UTILISATEURS & SESSION
+# UTILISATEURS & SESSION (CORRIGÉ)
 # ==========================================
-if "device_fingerprint" not in st.session_state: st.session_state.device_fingerprint = str(os.getpid())
+if "device_fingerprint" not in st.session_state: 
+    st.session_state.device_fingerprint = base64.b64encode(os.urandom(16)).decode()
 if "connecte" not in st.session_state: st.session_state.connecte = False
 if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "abonnement_actif" not in st.session_state: st.session_state.abonnement_actif = False
 
 def inscrire_utilisateur(email, password, dev_id):
     conn = get_connection(); c = conn.cursor()
-    c.execute("SELECT id FROM utilisateurs WHERE device_id = ?", (dev_id,))
-    if c.fetchone(): conn.close(); return "anti_abuse"
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     try:
         c.execute("INSERT INTO utilisateurs (email, password, device_id) VALUES (?, ?, ?)", (email, hashed, dev_id))
@@ -127,8 +150,6 @@ def verifier_utilisateur(email, password):
     conn = get_connection(); c = conn.cursor()
     c.execute("SELECT password, Paddle_actif FROM utilisateurs WHERE email = ?", (email,))
     res = c.fetchone(); conn.close()
-    
-    # Résolution définitive du crash de déballage du tuple
     if res:
         mot_de_passe_hash = res[0]
         paddle_statut = bool(res[1])
@@ -141,8 +162,10 @@ def verifier_utilisateur(email, password):
 # ==========================================
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 logo_data = extraire_logo_base64("logo (2).png")
-if logo_data: st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allow_html=True)
-else: st.markdown('<div style="font-size:90px; animation: pulse 3s infinite ease-in-out;">🚀</div>', unsafe_allow_html=True)
+if logo_data: 
+    st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allow_html=True)
+else: 
+    st.markdown('<div style="font-size:90px; text-align:center;">🚀</div>', unsafe_allow_html=True)
 st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -151,31 +174,39 @@ if not st.session_state.connecte:
     c1, c2, c3 = st.columns(3)
     with c2:
         tab_login, tab_register = st.tabs(["🔒 Se connecter", "📝 S'inscrire"])
+        
         with tab_login:
             em = st.text_input("Adresse Email", key="l_em")
             pw = st.text_input("Mot de passe", type="password", key="l_pw")
-            if st.button("Connexion Immédiate"):
+            if st.button("Connexion", key="btn_login"):
                 if em and pw:
-                    suc, act = verifier_utilisateur(em, pw)
-                    if suc: st.session_state.connecte = True; st.session_state.user_email = em; st.session_state.abonnement_actif = act; st.rerun()
-                    else: st.error("Identifiants incorrects.")
-                else: st.warning("Veuillez remplir tous les champs.")
-        with tab_register:
-            em_r = st.text_input("Votre Email", key="r_em")
-            pw_r = st.text_input("Créer un mot de passe", type="password", key="r_pw")
-            if st.button("Créer mon compte unique"):
-                if em_r and pw_r:
-                    status = inscrire_utilisateur(em_r, pw_r, st.session_state.device_fingerprint)
-                    if status == "ok": st.success("🎉 Compte créé ! Connectez-vous sur l'onglet d'à côté.")
-                    elif status == "anti_abuse": st.error("🚨 Un compte existe déjà pour cet appareil.")
-                    else: st.error("Email déjà enregistré.")
+                    success, active = verifier_utilisateur(em, pw)
+                    if success:
+                        st.session_state.connecte = True
+                        st.session_state.user_email = em
+                        st.session_state.abonnement_actif = active
+                        st.success("Connexion réussie !")
+                        st.rerun()
+                    else:
+                        st.error("Identifiants incorrects.")
                 else:
                     st.warning("Veuillez remplir tous les champs.")
+                    
+        with tab_register:
+            reg_em = st.text_input("Nouvelle Adresse Email", key="r_em")
+            reg_pw = st.text_input("Nouveau Mot de passe", type="password", key="r_pw")
+            if st.button("Créer un compte", key="btn_reg"):
+                if reg_em and reg_pw:
+                    status = inscrire_utilisateur(reg_em, reg_pw, st.session_state.device_fingerprint)
+                    if status == "ok":
+                        st.success("Compte créé avec succès ! Connectez-vous.")
+                    elif status == "exists":
+                        st.error("Cet email ou cet appareil est déjà enregistré.")
+                else:
+                    st.warning("Veuillez remplir tous les champs.")
+else:
+    st.sidebar.write(f"Connecté en tant que : {st.session_state.user_email}")
+    if st.sidebar.button("Déconnexion"):
+        st.session_state.connecte = False
+        st.rerun()
 
-elif st.session_state.connecte and not st.session_state.abonnement_actif:
-    st.warning("🔒 SÉCURITÉ COMPTE : Votre moyen de paiement n'est pas configuré.")
-    c1, c2, c3 = st.columns(3)
-    with c2:
-        code_html = f"""<script src="https://paddle.com"></script><script>Paddle.Initialize({{ token: "{PADDLE_VENDOR_ID}" }});</script><div style="text-align:center;"><button style="background: linear-gradient(135deg, #00A86B 0%, #00FF9D 100%); color: black; padding: 16px 35px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;" onclick='Paddle.Checkout.open({{ items: [{{ priceId: "{PADDLE_PRICE_ID}", quantity: 1 }}], customer: {{ email: "{st.session_state.user_email}" }} }})'>💳 Activer l'accès Premium (Essai 12 jours)</button></div>"""
-        components.html(code_html, height=120)
-        if st.button("🔄 Rafraîchir mon accès après paiement"):
