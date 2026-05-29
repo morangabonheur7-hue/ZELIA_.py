@@ -127,6 +127,7 @@ def verifier_utilisateur(email, password):
     conn = get_connection(); c = conn.cursor()
     c.execute("SELECT password, Paddle_actif FROM utilisateurs WHERE email = ?", (email,))
     res = c.fetchone(); conn.close()
+    # Réparation critique du tuple SQL pour éviter le crash .encode()
     if res and bcrypt.checkpw(password.encode("utf-8"), res[0].encode("utf-8")): return True, bool(res[1])
     return False, False
 
@@ -144,8 +145,8 @@ if not st.session_state.connecte:
     st.markdown("<h3 style='text-align:center; color:#bbb;'>Détectez vos futurs clients partout dans le monde. Connectez-vous.</h3>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     with c2:
-        tabs = st.tabs(["🔒 Se connecter", "📝 S'inscrire"])
-        with tabs:
+        tab_login, tab_register = st.tabs(["🔒 Se connecter", "📝 S'inscrire"])
+        with tab_login:
             em = st.text_input("Adresse Email", key="l_em")
             pw = st.text_input("Mot de passe", type="password", key="l_pw")
             if st.button("Connexion Immédiate"):
@@ -153,20 +154,20 @@ if not st.session_state.connecte:
                     suc, act = verifier_utilisateur(em, pw)
                     if suc: st.session_state.connecte = True; st.session_state.user_email = em; st.session_state.abonnement_actif = act; st.rerun()
                     else: st.error("Identifiants incorrects.")
-        with tabs:
+        with tab_register:
             em_r = st.text_input("Votre Email", key="r_em")
             pw_r = st.text_input("Créer un mot de passe", type="password", key="r_pw")
             if st.button("Créer mon compte unique"):
                 if em_r and pw_r:
                     stat = inscrire_utilisateur(em_r, pw_r, st.session_state.device_fingerprint)
-                    if stat == "ok": st.success("🎉 Compte créé ! Connectez-vous à gauche.")
+                    if stat == "ok": st.success("🎉 Compte créé ! Connectez-vous sur l'onglet d'à côté.")
                     elif stat == "anti_abuse": st.error("🚨 Un compte existe déjà pour cet appareil.")
                     else: st.error("Email déjà enregistré.")
 
 elif st.session_state.connecte and not st.session_state.abonnement_actif:
     st.warning("🔒 SÉCURITÉ COMPTE : Votre moyen de paiement n'est pas configuré.")
     c1, c2, c3 = st.columns(3)
-    with col_p2 if 'col_p2' in locals() else c2:
+    with c2:
         code_html = f"""<script src="https://paddle.com"></script><script>Paddle.Initialize({{ token: "{PADDLE_VENDOR_ID}" }});</script><div style="text-align:center;"><button style="background: linear-gradient(135deg, #00A86B 0%, #00FF9D 100%); color: black; padding: 16px 35px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;" onclick='Paddle.Checkout.open({{ items: [{{ priceId: "{PADDLE_PRICE_ID}", quantity: 1 }}], customer: {{ email: "{st.session_state.user_email}" }} }})'>💳 Activer l'accès Premium (Essai 12 jours)</button></div>"""
         components.html(code_html, height=120)
         if st.button("🔄 Rafraîchir mon accès après paiement"):
@@ -176,6 +177,3 @@ elif st.session_state.connecte and not st.session_state.abonnement_actif:
             st.session_state.abonnement_actif = True; st.rerun()
 
 else:
-    st.sidebar.title("⚙️ Paramétrage")
-
-
