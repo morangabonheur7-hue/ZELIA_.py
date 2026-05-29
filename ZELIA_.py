@@ -179,8 +179,8 @@ def afficher_bouton_paddle_strict(email_user):
 # 1. LOGO EN GRAND ÉCRAN ET ANIMATION CENTRALE
 # ==========================================
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-# Cible votre fichier logo(2).png sur GitHub
-logo_data = extraire_logo_base64("logo(2).png")
+# Prise en compte de l'espace exact pour logo (2).png
+logo_data = extraire_logo_base64("logo (2).png")
 if logo_data:
     st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allow_html=True)
 else:
@@ -250,3 +250,4 @@ elif st.session_state.connecte and not st.session_state.abonnement_actif:
             conn.close()
             st.session_state.abonnement_actif = True
             st.success("Carte validée par Paddle ! Accès accordé.")
+    
