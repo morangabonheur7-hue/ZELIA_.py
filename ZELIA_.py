@@ -62,7 +62,7 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(0,168,107,0.4) !important;
     }
     </style>
-""", unsafe_allowed_html=True)
+""", unsafe_allow_html=True)
 
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def initialiser_bdd():
@@ -178,26 +178,26 @@ def afficher_bouton_paddle_strict(email_user):
 # ==========================================
 # 1. LOGO EN GRAND ÉCRAN ET ANIMATION CENTRALE
 # ==========================================
-st.markdown('<div class="logo-container">', unsafe_allowed_html=True)
+st.markdown('<div class="logo-container">', unsafe_allow_html=True)
 logo_data = extraire_logo_base64("logo.png")
 if logo_data:
-    st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allowed_html=True)
+    st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allow_html=True)
 else:
     st.markdown('<div style="font-size:90px; animation: pulse 3s infinite ease-in-out;">🚀</div>', unsafe_allowed_html=True)
-st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allowed_html=True)
-st.markdown('</div>', unsafe_allowed_html=True)
+st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 2. ACCÈS STRICTEMENT VERROUILLÉ SI NON CONNECTÉ
 # ==========================================
 if not st.session_state.connecte:
-    st.markdown("<h3 style='text-align:center; color:#bbb;'>Détectez vos futurs clients partout dans le monde. Connectez-vous.</h3>", unsafe_allowed_html=True)
+    st.markdown("<h3 style='text-align:center; color:#bbb;'>Détectez vos futurs clients partout dans le monde. Connectez-vous.</h3>", unsafe_allow_html=True)
     
     col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
     with col_c2:
         onglets_auth = st.tabs(["🔒 Se connecter", "📝 S'inscrire"])
         
-        with onglets_auth:
+        with onglets_auth[0]:
             email_log = st.text_input("Adresse Email", key="log_email")
             pass_log = st.text_input("Mot de passe", type="password", key="log_pass")
             if st.button("Connexion Immédiate"):
@@ -210,7 +210,7 @@ if not st.session_state.connecte:
                 else:
                     st.error("Identifiants incorrects ou compte introuvable.")
                     
-        with onglets_auth:
+        with onglets_auth[1]:
             email_reg = st.text_input("Votre Email", key="reg_email")
             pass_reg = st.text_input("Créer un mot de passe", type="password", key="reg_pass")
             if st.button("Créer mon compte unique"):
@@ -227,7 +227,7 @@ if not st.session_state.connecte:
 # 3. VERROUILLAGE SÉCURITÉ PADDLE (PAS DE CARTE = PAS DE FLUX)
 # ==========================================
 elif st.session_state.connecte and not st.session_state.abonnement_actif:
-    st.markdown("<hr>", unsafe_allowed_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
     st.warning("🔒 SÉCURITÉ COMPTE : Votre robot refuse l'accès aux flux de messages tant qu'aucun moyen de paiement n'est configuré.")
     
     col_p1, col_p2, col_p3 = st.columns([1, 2, 1])
@@ -250,6 +250,6 @@ elif st.session_state.connecte and not st.session_state.abonnement_actif:
 # 4. PLATEFORME INTERNATIONALE PUISSANTE (MEMBRES PREMIUMS)
 # ==========================================
 else:
-    st.markdown("<hr>", unsafe_allowed_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
     st.sidebar.title("⚙️ Paramétrage du Robot")
-    
+
