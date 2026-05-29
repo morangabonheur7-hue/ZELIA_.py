@@ -1,278 +1,167 @@
-[NICHE]
-mots_cles = plombier, fuite,services, urgence, tuyau, robinet,technicien
-
-[VILLES]
-liste = Paris, Lyon, Marseille, Bordeaux,london
-
-import streamlit as st
-import sqlite3
-import bcrypt
-import os
-
-# --- CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="ZELIA - Sourcing Clients", page_icon="🚀", layout="wide")
-
-# --- INITIALISATION DE LA BASE DE DONNÉES ---
-def initialiser_bdd():
-    conn = sqlite3.connect("clients.db")
-    c = conn.cursor()
-    # Table des utilisateurs
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS utilisateurs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE,
-            password TEXT,
-            stripe_actif INTEGER DEFAULT 0
-        )
-    ''')
-    # Table des opportunités clients trouvées par le bot
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS opportunites (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titre TEXT,
-            ville TEXT,
-            lien TEXT,
-            date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-initialiser_bdd()
-
-# --- SESSIONS UTILISATEURS (Streamlit State) ---
-if "connecte" not in st.session_state:
-    st.session_state.connecte = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
-if "abonnement_actif" not in st.session_state:
-    st.session_state.abonnement_actif = False
-
-# --- FONCTIONS UTILES (Gestion des utilisateurs) ---
-def inscrire_utilisateur(email, password):
-    conn = sqlite3.connect("clients.db")
-    c = conn.cursor()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    try:
-        c.execute("INSERT INTO utilisateurs (email, password) VALUES (?, ?)", (email, hashed))
-        conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False
-    finally:
-        conn.close()
-
-def verifier_utilisateur(email, password):
-    conn = sqlite3.connect("clients.db")
-    c = conn.cursor()
-    c.execute("SELECT password, stripe_actif FROM utilisateurs WHERE email = ?", (email,))
-    resultat = c.fetchone()
-    conn.close()
-    
-    if resultat and bcrypt.checkpw(password.encode('utf-8'), resultat[0].encode('utf-8')):
-        return True, bool(resultat[1])
-    return False, False
-
-def activer_abonnement_bdd(email):
-    conn = sqlite3.connect("clients.db")
-    c = conn.cursor()
-    c.execute("UPDATE utilisateurs SET stripe_actif = 1 WHERE email = ?", (email,))
-    conn.commit()
-    conn.close()
-
-# --- INTERFACE GRAPHIQUE (UI) ---
-
-# Barre latérale : Connexion / Déconnexion
-st.sidebar.title("🔑 Espace Membre")
-if not st.session_state.connecte:
-    action = st.sidebar.radio("Action", ["Se connecter", "S'inscrire"])
-    email_saisi = st.sidebar.text_input("Adresse Email")
-    password_saisi = st.sidebar.text_input("Mot de passe", type="password")
-    
-    if action == "S'inscrire":
-        if st.sidebar.button("Créer mon compte"):
-            if email_saisi and password_saisi:
-                if inscrire_utilisateur(email_saisi, password_saisi):
-                    st.sidebar.success("Compte créé ! Connectez-vous maintenant.")
-                else:
-                    st.sidebar.error("Cet email est déjà utilisé.")
-            else:
-                st.sidebar.warning("Veuillez remplir tous les champs.")
-                
-    elif action == "Se connecter":
-        if st.sidebar.button("Connexion"):
-            succes, actif = verifier_utilisateur(email_saisi, password_saisi)
-            if "%" in email_saisi: # Sécurité basique
-                st.sidebar.error("Caractères invalides.")
-            elif succes:
-                st.session_state.connecte = True
-                st.session_state.user_email = email_saisi
-                st.session_state.abonnement_actif = actif
-                st.rerun()
-            else:
-                st.sidebar.error("Identifiants incorrects.")
-else:
-    st.sidebar.write(f"Connecté en tant que : **{st.session_state.user_email}**")
-    if st.sidebar.button("Se déconnecter"):
-        st.session_state.connecte = False
-        st.session_state.user_email = ""
-        st.session_state.abonnement_actif = False
-        st.rerun()
-
-# PAGE PRINCIPALE
-st.title("🚀 ZELIA - Chasseur d'Opportunités SaaS")
-
-# Affichage du logo si présent
-if os.path.exists("logo.png"):
-    st.image("logo.png", width=150)
-else:
-    st.info("💡 Astuce : Ajoutez une image 'logo.png' dans votre dossier pour afficher votre logo ici.")
-
-# Logique des onglets / affichage selon statut
-if not st.session_state.connecte:
-    # Page d'accueil publique
-    st.markdown("""
-    ### Trouvez des chantiers et des clients sans lever le petit doigt.
-    ZELIA est un robot intelligent qui scanne le web 24h/24 pour extraire les demandes de prospects (plombiers, électriciens, artisans...).
-    
-    **Comment ça marche ?**
-    1. Créez un compte en quelques secondes dans la barre latérale.
-    2. Activez votre abonnement avec **12 jours d'essai gratuit**.
-    3. Accédez instantanément à votre tableau de bord de leads qualifiés.
-    """)
-    
-elif st.session_state.connecte and not st.session_state.abonnement_actif:
-    # Tunnel de paiement (Simulation API Stripe)
-    st.warning("⚠️ Votre abonnement n'est pas actif.")
-    st.subheader("Abonnement ZELIA Pro - 29,99€ / mois")
-    st.write("Profitez de 12 jours d'essai gratuit. Annulable à tout moment.")
-    
-    st.markdown("### 💳 Formulaire de paiement sécurisé (Stripe)")
-    carte = st.text_input("Numéro de carte bancaire (Simulation)", placeholder="4242 4242 4242 4242")
-    
-    if st.button("Activer mon essai gratuit de 12 jours"):
-        if len(carte) > 10: # Vérification fictive pour l'exemple
-            activer_abonnement_bdd(st.session_state.user_email)
-            st.session_state.abonnement_actif = True
-            st.success("Paiement validé par Stripe ! Bienvenue chez ZELIA.")
-            st.rerun()
-        else:
-            st.error("Veuillez saisir un numéro de carte valide.")
-
-else:
-    # TABLEAU DE BORD PRIVÉ (Abonnement OK)
-    st.success("✅ Votre abonnement est actif (Période d'essai en cours).")
-    st.subheader("🎯 Vos opportunités clients en temps réel")
-    
-    # Lecture des données insérées par le robot
-    conn = sqlite3.connect("clients.db")
-    c = conn.cursor()
-    c.execute("SELECT titre, ville, lien, date_trouvee FROM opportunites ORDER BY date_trouvee DESC")
-    donnees = c.fetchall()
-    conn.close()
-    
-    if donnees:
-        # Affichage sous forme de tableau propre
-        import pandas as pd
-        df = pd.DataFrame(donnees, columns=["Mission demandée", "Ville", "Lien de l'annonce", "Découvert le"])
-        st.dataframe(df, use_container_width=True)
-    else:
-        st.info("Le robot est en cours d'analyse. Les premiers clients apparaîtront ici d'ici une heure.")
-        # Bouton de démonstration pour tester l'interface sans attendre le bot
-        if st.button("Simulation : Ajouter un client test"):
-            conn = sqlite3.connect("clients.db")
-            c = conn.cursor()
-            c.execute("INSERT INTO opportunites (titre, ville, lien) VALUES (?, ?, ?)", 
-                      ("Recherche plombier en urgence pour fuite WC", "Paris", "https://exemple.com"))
-            conn.commit()
-            conn.close()
-            st.rerun()
-
-
+ import sqlite3
+import asyncio
+import httpx
+import urllib.parse
+import re
 import time
-import sqlite3
-import configparser
-import requests
 from bs4 import BeautifulSoup
 
-def charger_configuration():
-    """Lit le fichier config.txt pour récupérer les mots-clés et les villes."""
-    config = configparser.ConfigParser()
-    config.read("config.txt", encoding="utf-8")
-    
-    # Récupération et nettoyage des données
-    mots_cles = [m.strip().lower() for m in config.get("NICHE", "mots_cles").split(",")]
-    villes = [v.strip().lower() for v in config.get("VILLES", "liste").split(",")]
-    
-    return mots_cles, villes
+# --- CONFIGURATION INITIALE ---
+DB_NAME = "clients.db"
 
-def enregistrer_opportunite(titre, ville, lien):
-    """Insère une nouvelle opportunité dans la base de données si elle n'existe pas déjà."""
-    conn = sqlite3.connect("clients.db")
+# --- SYSTEME DE TRADUCTION ET DE SOURCING MONDIAL ---
+# Permet au robot de comprendre toutes les langues selon le pays demandé par l'application
+DICTIONNAIRE_MUNDIAL = {
+    "Plombier": {"fr": "plombier", "en": "plumber", "es": "fontanero", "de": "klempner", "it": "idraulico"},
+    "Électricien": {"fr": "electricien", "en": "electrician", "es": "electricista", "de": "elektriker", "it": "elettricista"},
+    "Mécanicien": {"fr": "mecanicien", "en": "mechanic", "es": "mecanico", "de": "mechaniker", "it": "meccanico"},
+    "Menuisier": {"fr": "menuisier", "en": "carpenter", "es": "carpintero", "de": "tischler", "it": "falegname"},
+    "Peintre en bâtiment": {"fr": "peintre", "en": "painter", "es": "pintor", "de": "maler", "it": "pittore"},
+    "Serrurier": {"fr": "serrurier", "en": "locksmith", "es": "cerrajero", "de": "schlosser", "it": "fabbro"},
+    "Maçon": {"fr": "macon", "en": "mason", "es": "albañil", "de": "maurer", "it": "muratore"},
+    "Couvreur": {"fr": "couvreur", "en": "roofer", "es": "techador", "de": "dachdecker", "it": "tettoia"},
+    "Chauffagiste": {"fr": "chauffagiste", "en": "heating", "es": "calefactor", "de": "heizungsbauer", "it": "riscaldamento"},
+    "Climatisation": {"fr": "climatisation", "en": "ac repair", "es": "aire acondicionado", "de": "klimaanlage", "it": "condizionamento"},
+    "Jardinier / Paysagiste": {"fr": "jardinier", "en": "gardener", "es": "jardinero", "de": "gärtner", "it": "giardiniere"}
+}
+
+# Empreintes sémantiques de recherche selon la langue du pays cible
+EMPREINTES_LANGUES = {
+    "fr": ["cherche", "besoin", "recommande", "urgence", "depannage"],
+    "en": ["looking for", "need a", "recommend", "urgent", "emergency"],
+    "es": ["busco", "necesito", "recomendar", "urgente", "emergencia"],
+    "de": ["suche", "brauche", "empfehlen", "dringend", "notdienst"],
+    "it": ["cerco", "bisogno", "consigliare", "urgente", "emergenza"]
+}
+
+# Correspondance entre le pays sélectionné et la langue à utiliser pour la recherche
+PAYS_LANGUES = {
+    "France": "fr", "Belgique": "fr", "Suisse": "fr",
+    "Canada": "en", "Royaume-Uni": "en", "États-Unis": "en",
+    "Allemagne": "de", "Espagne": "es", "Italie": "it"
+}
+
+# Villes majeures par défaut par pays pour alimenter le scan global
+VILLES_MONDE = {
+    "France": ["Paris", "Lyon", "Marseille", "Bordeaux", "Lille", "Nantes"],
+    "Belgique": ["Bruxelles", "Anvers", "Liège"],
+    "Suisse": ["Genève", "Zurich", "Lausanne"],
+    "Canada": ["Toronto", "Montréal", "Vancouver"],
+    "Royaume-Uni": ["London", "Manchester", "Birmingham"],
+    "États-Unis": ["New York", "Los Angeles", "Miami"],
+    "Allemagne": ["Berlin", "Munich", "Frankfurt"],
+    "Espagne": ["Madrid", "Barcelona", "Valencia"],
+    "Italie": ["Roma", "Milano", "Napoli"]
+}
+
+COOKIE_FB_TEST = "c_user=XXXXXX; xs=XXXXXX;"
+GROUPES_FB_TEST = ["1234567890", "9876543210"]
+
+def inserer_opportunite(titre, ville, pays, niche, lien, plateforme):
+    """Insère directement le lead au format exact requis par ZELIA GLOBAL."""
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # On vérifie si ce lien exact a déjà été enregistré pour éviter les doublons
     c.execute("SELECT id FROM opportunites WHERE lien = ?", (lien,))
-    existe = c.fetchone()
-    
-    if not existe:
-        c.execute("INSERT INTO opportunites (titre, ville, lien) VALUES (?, ?, ?)", (titre, ville, lien))
-        conn.commit()
-        print(f"[BOT] Nouvelle opportunité ajoutée : {titre} ({ville})")
-    
-    conn.close()
+    if c.fetchone():
+        conn.close()
+        return
 
-def scanner_le_web():
-    """Simule le scan d'un site d'annonces et filtre selon la configuration."""
-    mots_cles, villes = charger_configuration()
-    print(f"[BOT] Lancement du scan avec les mots-clés {mots_cles} sur les villes {villes}...")
-    
-    # --- EXEMPLE DE SCRIPT DE SCRAPING DE BASE ---
-    # Pour le lancement, nous utilisons une URL d'exemple. 
-    # (À remplacer par l'URL réelle du site d'annonces ciblé, ex: Leboncoin, Travaux.com...)
-    url_cible = "https://ycombinator.com" 
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    c.execute(
+        "INSERT INTO opportunites (titre, ville, pays, niche, lien) VALUES (?, ?, ?, ?, ?)",
+        (f"[{plateforme}] {titre}", ville, pays, niche, lien)
+    )
+    conn.commit()
+    conn.close()
+    print(f"🎉 [ZELIA BOT] Lead mondial enregistré : {titre} ({ville}, {pays})")
+
+# --- MODULE 1 : SCANNER DU WEB MONDIAL (Via DuckDuckGo HTML) ---
+async def scanner_web_mondial(client, mot_traduit, langue, ville, pays, métier_cle):
+    # Génère des expressions comme : "looking for plumber" London ou "je cherche un plombier" Paris
+    if langue == "fr":
+        phrase_recherche = f'"je cherche un {mot_traduit}" {ville}'
+    elif langue == "en":
+        phrase_recherche = f'"looking for {mot_traduit}" {ville}'
+    elif langue == "es":
+        phrase_recherche = f'"busco un {mot_traduit}" {ville}'
+    else:
+        phrase_recherche = f"{mot_traduit} {ville}"
+        
+    query_encodee = urllib.parse.quote(phrase_recherche)
+    url = f"https://duckduckgo.com{query_encodee}"
     
     try:
-        reponse = requests.get(url_cible, headers=headers, timeout=10)
-        if reponse.status_code == 200:
-            soup = BeautifulSoup(reponse.text, 'html.parser')
+        response = await client.get(url, timeout=12.0)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, "html.parser")
+            resultats = soup.find_all("div", class_="result__body")
             
-            # --- LOGIQUE DE SIMULATION DE RECHERCHE ---
-            # Le robot extrait les titres et liens d'un site
-            annonces = soup.find_all('tr', class_='athing')
-            
-            # Pour l'exemple technique, on injecte de fausses annonces correspondantes 
-            # afin de valider que les filtres de mots-clés et villes fonctionnent à 100%
-            annonces_fictives = [
-                {"titre": "Urgence fuite de tuyau dans la cuisine", "ville": "Paris", "lien": "https://annonces.com"},
-                {"titre": "Cherche électricien pour salon", "ville": "Lyon", "lien": "https://annonces.com"},
-                {"titre": "Remplacement de robinet salle de bain", "ville": "Marseille", "lien": "https://annonces.com"}
-            ]
-            
-            # Analyse et filtrage des annonces trouvées
-            for annonce in annonces_fictives:
-                titre_minuscule = list(annonce.values())[0].lower()
-                ville_minuscule = list(annonce.values())[1].lower()
+            for res in resultats:
+                snippet = res.find("a", class_="result__snippet")
+                lien_h = res.find("a", class_="result__url")
                 
-                # Le robot vérifie si la ville ET un mot-clé match avec config.txt
-                match_mot = any(mot in titre_minuscule for mot in mots_cles)
-                match_ville = any(ville in ville_minuscule for ville in villes)
-                
-                if match_mot and match_ville:
-                    enregistrer_opportunite(annonce["titre"], list(annonce.values())[1], list(annonce.values())[2])
-                    
-        else:
-            print(f"[BOT] Erreur serveur : Code {reponse.status_code}")
+                if snippet and lien_h:
+                    texte_trouve = snippet.text.lower()
+                    # Vérification multilingue intelligente des intentions d'achat/recrutement
+                    if any(mot_declencheur in texte_trouve for mot_declencheur in EMPREINTES_LANGUES[langue]):
+                        extrait_commentaire = snippet.text[:140] + "..."
+                        lien_reel = lien_h["href"]
+                        
+                        inserer_opportunite(extrait_commentaire, ville, pays, métier_cle, lien_reel, "Web")
     except Exception as e:
-        print(f"[BOT] Erreur lors du scan : {e}")
+        print(f"⚠️ Erreur scan Web ({pays}) pour {métier_cle} - {ville} : {e}")
 
-# --- BOUCLE PRINCIPALE (While True) ---
+# --- COMPORTEMENT DOUBLE : OBEIR A L'APPLICATION ET SCANNER EN CONTINU ---
+def recuperer_ordres_utilisateurs():
+    """Lit les choix des abonnés payants dans la BDD pour exécuter des ordres précis."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # On cible uniquement les abonnés actifs pour économiser les serveurs
+    c.execute("SELECT pays_choisi, service_choisi FROM utilisateurs WHERE Paddle_actif = 1")
+    ordres = c.fetchall()
+    conn.close()
+    return ordres
+
+async def execution_moteur():
+    print("🤖 Activation du moteur international ZELIA...")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+    
+    ordres_utilisateurs = recuperer_ordres_utilisateurs()
+    
+    async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
+        # S'il y a des utilisateurs connectés qui ont configuré le robot : ON LEUR OBÉIT
+        if ordres_utilisateurs:
+            print(f"🎯 Ordres détectés : Traitement de {len(ordres_utilisateurs)} configurations abonnés.")
+            for (pays, métier) in ordres_utilisateurs:
+                # Gestion du cas "Tous" ou ciblage précis
+                pays_a_scanner = [p for p in PAYS_LANGUES.keys()] if pays == "Tous" else [pays]
+                metiers_a_scanner = [m for m in DICTIONNAIRE_MUNDIAL.keys() if m != "Tous"] if métier == "Tous" else [métier]
+                
+                for p_cible in pays_a_scanner:
+                    langue_cible = PAYS_LANGUES.get(p_cible, "en")
+                    villes_cibles = VILLES_MONDE.get(p_cible, ["London"])
+                    
+                    for m_cible in metiers_a_scanner:
+                        mot_traduit = DICTIONNAIRE_MUNDIAL[m_cible].get(langue_cible, m_cible.lower())
+                        
+                        for ville in villes_cibles:
+                            print(f"📡 [Priorité Abonné] Scan : {m_cible} ({mot_traduit}) à {ville}, {p_cible}...")
+                            await scanner_web_mondial(client, mot_traduit, langue_cible, ville, p_cible, m_cible)
+                            await asyncio.sleep(2)
+        else:
+            # Mode surveillance globale automatique par défaut s'il n'y a aucun ordre
+            print("🌐 Aucun ordre utilisateur en attente. Lancement de la routine de surveillance globale...")
+            for p_cible, langue_cible in PAYS_LANGUES.items():
+                villes_cibles = VILLES_MONDE[p_cible][:2] # Prend les 2 villes majeures pour la routine
+                for m_cible, traductions in DICTIONNAIRE_MUNDIAL.items():
+                    mot_traduit = traductions.get(langue_cible)
+                    for ville in villes_cibles:
+                        await scanner_web_mondial(client, mot_traduit, langue_cible, ville, p_cible, m_cible)
+                        await asyncio.sleep(2)
+
 if __name__ == "__main__":
-    print("[BOT] ZELIA Surveillance est activé et tourne en arrière-plan.")
-    while True:
-        scanner_le_web()
-        
-        # Pause de 1 heure (3600 secondes) avant le prochain scan
-        print("[BOT] Scan terminé. Prochaine vérification dans 1 heure...")
-        time.sleep(3600)
+    # Exécution simple adaptée au Cron Job toutes les 5 minutes de Render
+    asyncio.run(execution_moteur())
+    print("😴 Routine terminée avec succès.")
