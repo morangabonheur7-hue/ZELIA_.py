@@ -1,3 +1,4 @@
 streamlit
 bcrypt
 requests
+beautifulsoup4 
