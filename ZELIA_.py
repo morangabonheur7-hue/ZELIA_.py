@@ -6,7 +6,7 @@ import base64
 import pandas as pd
 import streamlit.components.v1 as components
 
-# --- CONFIGURATION DE LA PAGE ---
+# --- CONFIGURATION STRICTE DE LA PAGE ---
 st.set_page_config(page_title="ZELIA - Sourcing Mondial", page_icon="🚀", layout="wide")
 
 PADDLE_VENDOR_ID = "345487"
@@ -179,11 +179,12 @@ def afficher_bouton_paddle_strict(email_user):
 # 1. LOGO EN GRAND ÉCRAN ET ANIMATION CENTRALE
 # ==========================================
 st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-logo_data = extraire_logo_base64("logo.png")
+# Cible votre fichier logo(2).png sur GitHub
+logo_data = extraire_logo_base64("logo(2).png")
 if logo_data:
     st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allow_html=True)
 else:
-    st.markdown('<div style="font-size:90px; animation: pulse 3s infinite ease-in-out;">🚀</div>', unsafe_allowed_html=True)
+    st.markdown('<div style="font-size:90px; animation: pulse 3s infinite ease-in-out;">🚀</div>', unsafe_allow_html=True)
 st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -193,24 +194,27 @@ st.markdown('</div>', unsafe_allow_html=True)
 if not st.session_state.connecte:
     st.markdown("<h3 style='text-align:center; color:#bbb;'>Détectez vos futurs clients partout dans le monde. Connectez-vous.</h3>", unsafe_allow_html=True)
     
-    col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+    col_c1, col_c2, col_c3 = st.columns()
     with col_c2:
         onglets_auth = st.tabs(["🔒 Se connecter", "📝 S'inscrire"])
         
-        with onglets_auth[0]:
+        with onglets_auth:
             email_log = st.text_input("Adresse Email", key="log_email")
             pass_log = st.text_input("Mot de passe", type="password", key="log_pass")
             if st.button("Connexion Immédiate"):
-                succes, actif = verifier_utilisateur(email_log, pass_log)
-                if succes:
-                    st.session_state.connecte = True
-                    st.session_state.user_email = email_log
-                    st.session_state.abonnement_actif = actif
-                    st.rerun()
+                if email_log and pass_log:
+                    succes, actif = verifier_utilisateur(email_log, pass_log)
+                    if succes:
+                        st.session_state.connecte = True
+                        st.session_state.user_email = email_log
+                        st.session_state.abonnement_actif = actif
+                        st.rerun()
+                    else:
+                        st.error("Identifiants incorrects ou compte introuvable.")
                 else:
-                    st.error("Identifiants incorrects ou compte introuvable.")
+                    st.warning("Veuillez remplir tous les champs.")
                     
-        with onglets_auth[1]:
+        with onglets_auth:
             email_reg = st.text_input("Votre Email", key="reg_email")
             pass_reg = st.text_input("Créer un mot de passe", type="password", key="reg_pass")
             if st.button("Créer mon compte unique"):
@@ -222,6 +226,8 @@ if not st.session_state.connecte:
                         st.error("🚨 Un compte existe déjà depuis cet appareil pour éviter le multi-compte abusif.")
                     else:
                         st.error("Cette adresse email est déjà enregistrée.")
+                else:
+                    st.warning("Veuillez remplir tous les champs.")
 
 # ==========================================
 # 3. VERROUILLAGE SÉCURITÉ PADDLE (PAS DE CARTE = PAS DE FLUX)
@@ -230,7 +236,7 @@ elif st.session_state.connecte and not st.session_state.abonnement_actif:
     st.markdown("<hr>", unsafe_allow_html=True)
     st.warning("🔒 SÉCURITÉ COMPTE : Votre robot refuse l'accès aux flux de messages tant qu'aucun moyen de paiement n'est configuré.")
     
-    col_p1, col_p2, col_p3 = st.columns([1, 2, 1])
+    col_p1, col_p2, col_p3 = st.columns()
     with col_p2:
         st.info("ZELIA intègre le protocole international Paddle. Saisissez votre carte ou PayPal pour débloquer votre tableau de bord.")
         afficher_bouton_paddle_strict(st.session_state.user_email)
@@ -244,12 +250,3 @@ elif st.session_state.connecte and not st.session_state.abonnement_actif:
             conn.close()
             st.session_state.abonnement_actif = True
             st.success("Carte validée par Paddle ! Accès accordé.")
-            st.rerun()
-
-# ==========================================
-# 4. PLATEFORME INTERNATIONALE PUISSANTE (MEMBRES PREMIUMS)
-# ==========================================
-else:
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.sidebar.title("⚙️ Paramétrage du Robot")
-
