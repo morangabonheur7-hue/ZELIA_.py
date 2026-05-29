@@ -2,40 +2,90 @@ import streamlit as st
 import sqlite3
 import bcrypt
 import os
+import base64
 import pandas as pd
 import streamlit.components.v1 as components
 
-# --- CONFIGURATION INITIALE DE ZELIA ---
-# [NICHE]
-# mots_cles = "plombier", "fuite", "urgence", "tuyau", "robinet", "technicien", "electricien" par DEFAULT...
-# [VILLES]
-# liste = "Paris", "Lyon", "Marseille", "Bordeaux", "London" ect...
+# --- CONFIGURATION DE LA PAGE ---
+st.set_page_config(page_title="ZELIA - Sourcing Mondial", page_icon="🚀", layout="wide")
 
 PADDLE_VENDOR_ID = "345487"
 PADDLE_PRICE_ID = "pri_01ksk58k14szw6a8dys7y7as0r"
 
-# --- CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="ZELIA - Sourcing Clients", page_icon="🚀", layout="wide")
+# --- STYLE CSS PREMIUM (Boutons, Interface & Animation Logo) ---
+st.markdown("""
+    <style>
+    /* Centrage et animation du logo */
+    .logo-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 0px 10px 0px;
+    }
+    .animated-logo {
+        width: 250px;
+        height: auto;
+        animation: pulse 3s infinite ease-in-out;
+        border-radius: 20px;
+        box-shadow: 0px 15px 50px rgba(0, 168, 107, 0.4);
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); box-shadow: 0px 15px 50px rgba(0, 168, 107, 0.3); }
+        50% { transform: scale(1.06); box-shadow: 0px 25px 60px rgba(0, 168, 107, 0.6); }
+        100% { transform: scale(1); box-shadow: 0px 15px 50px rgba(0, 168, 107, 0.3); }
+    }
+    .main-title {
+        font-size: 46px !important;
+        font-weight: 900;
+        background: linear-gradient(45deg, #00A86B, #00FF9D);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-top: 15px;
+        letter-spacing: 2px;
+    }
+    /* Boutons stylisés */
+    div.stButton > button {
+        background: linear-gradient(135deg, #00A86B 0%, #007d50 100%) !important;
+        color: white !important;
+        font-weight: bold !important;
+        border-radius: 12px !important;
+        border: none !important;
+        padding: 12px 25px !important;
+        box-shadow: 0 4px 15px rgba(0,168,107,0.2) !important;
+        transition: all 0.3s ease !important;
+        width: 100%;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(0,168,107,0.4) !important;
+    }
+    </style>
+""", unsafe_allowed_html=True)
 
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def initialiser_bdd():
     conn = sqlite3.connect("clients.db")
     c = conn.cursor()
-    # Table des utilisateurs
     c.execute('''
         CREATE TABLE IF NOT EXISTS utilisateurs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE,
             password TEXT,
-            Paddle_actif INTEGER DEFAULT 0
+            device_id TEXT,
+            Paddle_actif INTEGER DEFAULT 0,
+            service_choisi TEXT DEFAULT 'Tous',
+            pays_choisi TEXT DEFAULT 'Tous'
         )
     ''')
-    # Table des opportunités clients trouvées par le bot
     c.execute('''
         CREATE TABLE IF NOT EXISTS opportunites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             titre TEXT,
             ville TEXT,
+            pays TEXT DEFAULT 'Global',
+            niche TEXT,
             lien TEXT,
             date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -45,7 +95,17 @@ def initialiser_bdd():
 
 initialiser_bdd()
 
-# --- SESSIONS UTILISATEURS (Streamlit State) ---
+# --- FONCTION POUR CHARGER LE LOGO EN ENCODAGE COMPATIBLE ---
+def extraire_logo_base64(chemin_fichier):
+    if os.path.exists(chemin_fichier):
+        with open(chemin_fichier, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode()
+    return None
+
+# --- SÉCURITÉ ANTI-ABUS / DISPOSITIF UNIQUE ---
+if "device_fingerprint" not in st.session_state:
+    st.session_state.device_fingerprint = str(os.getpid())
+
 if "connecte" not in st.session_state:
     st.session_state.connecte = False
 if "user_email" not in st.session_state:
@@ -53,17 +113,21 @@ if "user_email" not in st.session_state:
 if "abonnement_actif" not in st.session_state:
     st.session_state.abonnement_actif = False
 
-# --- FONCTIONS UTILES (Gestion des utilisateurs) ---
-def inscrire_utilisateur(email, password):
+# --- FONCTIONS DE GESTION DES MEMBRES ---
+def inscrire_utilisateur(email, password, dev_id):
     conn = sqlite3.connect("clients.db")
     c = conn.cursor()
+    c.execute("SELECT id FROM utilisateurs WHERE device_id = ?", (dev_id,))
+    if c.fetchone():
+        conn.close()
+        return "anti_abuse"
     hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     try:
-        c.execute("INSERT INTO utilisateurs (email, password) VALUES (?, ?)", (email, hashed))
+        c.execute("INSERT INTO utilisateurs (email, password, device_id) VALUES (?, ?, ?)", (email, hashed, dev_id))
         conn.commit()
-        return True
+        return "ok"
     except sqlite3.IntegrityError:
-        return False
+        return "exists"
     finally:
         conn.close()
 
@@ -73,142 +137,119 @@ def verifier_utilisateur(email, password):
     c.execute("SELECT password, Paddle_actif FROM utilisateurs WHERE email = ?", (email,))
     resultat = c.fetchone()
     conn.close()
-    
     if resultat and bcrypt.checkpw(password.encode('utf-8'), resultat[0].encode('utf-8')):
         return True, bool(resultat[1])
     return False, False
 
-def activer_abonnement_bdd(email):
+def enregistrer_configurations_filtres(email, pays, metier):
     conn = sqlite3.connect("clients.db")
     c = conn.cursor()
-    c.execute("UPDATE utilisateurs SET Paddle_actif = 1 WHERE email = ?", (email,))
+    c.execute("UPDATE utilisateurs SET pays_choisi = ?, service_choisi = ? WHERE email = ?", (pays, metier, email))
     conn.commit()
     conn.close()
 
-def afficher_bouton_paddle(email_user):
+def afficher_bouton_paddle_strict(email_user):
     code_html = f"""
-    <script src="https://cdn.paddle.com/paddle/paddle.js"></script>
+    <script src="https://paddle.com"></script>
     <script>
-        Paddle.Setup({{
-            vendor: {PADDLE_VENDOR_ID}
-        }});
+        Paddle.Setup({{ vendor: {PADDLE_VENDOR_ID} }});
     </script>
-    <button style="
-        background:#00A86B;
-        color:white;
-        padding:15px 25px;
-        border:none;
-        border-radius:8px;
-        font-weight:bold;
-        cursor:pointer;
-    " onclick="Paddle.Checkout.open({{
-        product: '{PADDLE_PRICE_ID}',
-        email: '{email_user}'
-    }})">
-        ⚡ Activer l'essai 12 jours avec Paddle
-    </button>
+    <div style="text-align:center; padding: 10px;">
+        <button style="
+            background: linear-gradient(135deg, #00A86B 0%, #00FF9D 100%);
+            color: black;
+            padding: 16px 35px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0px 8px 25px rgba(0, 230, 118, 0.3);
+        " onclick="Paddle.Checkout.open({{
+            product: '{PADDLE_PRICE_ID}',
+            email: '{email_user}'
+        }})">
+            💳 Activer l'accès Premium (Essai 12 jours)
+        </button>
+    </div>
     """
     components.html(code_html, height=100)
-    
-# --- INTERFACE GRAPHIQUE (UI) ---
 
-# Barre latérale : Connexion / Déconnexion
-st.sidebar.title("🔑 Espace Membre")
+# ==========================================
+# 1. LOGO EN GRAND ÉCRAN ET ANIMATION CENTRALE
+# ==========================================
+st.markdown('<div class="logo-container">', unsafe_allowed_html=True)
+logo_data = extraire_logo_base64("logo.png")
+if logo_data:
+    st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allowed_html=True)
+else:
+    st.markdown('<div style="font-size:90px; animation: pulse 3s infinite ease-in-out;">🚀</div>', unsafe_allowed_html=True)
+st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allowed_html=True)
+st.markdown('</div>', unsafe_allowed_html=True)
+
+# ==========================================
+# 2. ACCÈS STRICTEMENT VERROUILLÉ SI NON CONNECTÉ
+# ==========================================
 if not st.session_state.connecte:
-    action = st.sidebar.radio("Action", ["Se connecter", "S'inscrire"])
-    email_saisi = st.sidebar.text_input("Adresse Email")
-    password_saisi = st.sidebar.text_input("Mot de passe", type="password")
+    st.markdown("<h3 style='text-align:center; color:#bbb;'>Détectez vos futurs clients partout dans le monde. Connectez-vous.</h3>", unsafe_allowed_html=True)
     
-    if action == "S'inscrire":
-        if st.sidebar.button("Créer mon compte"):
-            if email_saisi and password_saisi:
-                if inscrire_utilisateur(email_saisi, password_saisi):
-                    st.sidebar.success("Compte créé ! Connectez-vous maintenant.")
-                else:
-                    st.sidebar.error("Cet email est déjà utilisé.")
-            else:
-                st.sidebar.warning("Veuillez remplir tous les champs.")
-                
-    elif action == "Se connecter":
-        if st.sidebar.button("Connexion"):
-            if "%" in email_saisi:
-                st.sidebar.error("Caractères invalides.")
-            else:
-                succes, actif = verifier_utilisateur(email_saisi, password_saisi)
+    col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+    with col_c2:
+        onglets_auth = st.tabs(["🔒 Se connecter", "📝 S'inscrire"])
+        
+        with onglets_auth:
+            email_log = st.text_input("Adresse Email", key="log_email")
+            pass_log = st.text_input("Mot de passe", type="password", key="log_pass")
+            if st.button("Connexion Immédiate"):
+                succes, actif = verifier_utilisateur(email_log, pass_log)
                 if succes:
                     st.session_state.connecte = True
-                    st.session_state.user_email = email_saisi
+                    st.session_state.user_email = email_log
                     st.session_state.abonnement_actif = actif
                     st.rerun()
                 else:
-                    st.sidebar.error("Identifiants incorrects.")
-else:
-    st.sidebar.write(f"Connecté en tant que : **{st.session_state.user_email}**")
-    if st.sidebar.button("Se déconnecter"):
-        st.session_state.connecte = False
-        st.session_state.user_email = ""
-        st.session_state.abonnement_actif = False
-        st.rerun()
+                    st.error("Identifiants incorrects ou compte introuvable.")
+                    
+        with onglets_auth:
+            email_reg = st.text_input("Votre Email", key="reg_email")
+            pass_reg = st.text_input("Créer un mot de passe", type="password", key="reg_pass")
+            if st.button("Créer mon compte unique"):
+                if email_reg and pass_reg:
+                    status = inscrire_utilisateur(email_reg, pass_reg, st.session_state.device_fingerprint)
+                    if status == "ok":
+                        st.success("🎉 Compte créé avec succès ! Connectez-vous sur l'onglet de gauche.")
+                    elif status == "anti_abuse":
+                        st.error("🚨 Un compte existe déjà depuis cet appareil pour éviter le multi-compte abusif.")
+                    else:
+                        st.error("Cette adresse email est déjà enregistrée.")
 
-# PAGE PRINCIPALE
-st.title("🚀 ZELIA - Chasseur d'Opportunités SaaS")
-
-# Affichage du logo
-if os.path.exists("logo.png"):
-    st.image("logo.png", width=150)
-else:
-    st.info("💡 Astuce : Ajoutez une image 'logo.png' dans votre dossier pour afficher votre logo ici.")
-
-# Logique d'affichage selon le statut de connexion et de paiement
-if not st.session_state.connecte:
-    st.markdown("""
-    ### Trouvez des chantiers et des clients sans lever le petit doigt.
-    ZELIA est un robot intelligent qui scanne le web 24h/24 pour extraire les demandes de prospects (plombiers, électriciens, artisans, techniciens, et autres...).
-    
-    **Comment ça marche ?**
-    1. Créez un compte en quelques secondes dans la barre latérale.
-    2. Activez votre abonnement avec **12 jours d'essai gratuit**.
-    3. Accédez instantanément à votre tableau de bord de leads qualifiés.
-    """)
-
+# ==========================================
+# 3. VERROUILLAGE SÉCURITÉ PADDLE (PAS DE CARTE = PAS DE FLUX)
+# ==========================================
 elif st.session_state.connecte and not st.session_state.abonnement_actif:
-    st.warning("⚠️ Accès requis")
-    st.subheader("🚀 ZELIA Pro - Essai 12 jours")
+    st.markdown("<hr>", unsafe_allowed_html=True)
+    st.warning("🔒 SÉCURITÉ COMPTE : Votre robot refuse l'accès aux flux de messages tant qu'aucun moyen de paiement n'est configuré.")
     
-    st.write("Cliquez ci-dessous pour finaliser votre abonnement d'essai sécurisé via notre partenaire Paddle :")
-    afficher_bouton_paddle(st.session_state.user_email)
-  
-    st.write("---")
-    st.write("🔄 *Une fois le paiement effectué via le bouton Paddle ci-dessus, cliquez sur le bouton ci-dessous pour activer votre tableau de bord.*")
-    if st.button("Valider et Activer mon accès"):
-        activer_abonnement_bdd(st.session_state.user_email)
-        st.session_state.abonnement_actif = True
-        st.success("Accès activé ! Bienvenue chez ZELIA.")
-        st.rerun()
-
-else:
-    # TABLEAU DE BORD PRIVÉ (Abonnement OK)
-    st.success("✅ Votre abonnement est actif (Période d'essai en cours).")
-    st.subheader("🎯 Vos opportunités clients en temps réel")
-    
-    conn = sqlite3.connect("clients.db")
-    c = conn.cursor()
-    c.execute("SELECT titre, ville, lien, date_trouvee FROM opportunites ORDER BY date_trouvee DESC")
-    donnees = c.fetchall()
-    conn.close()
-    
-    if donnees:
-        df = pd.DataFrame(donnees, columns=["Mission demandée", "Ville", "Lien de l'annonce", "Découvert le"])
-        st.dataframe(df, use_container_width=True)
-    else:
-        st.info("Le robot est en cours d'analyse. Les premiers clients apparaîtront ici d'ici une heure.")
+    col_p1, col_p2, col_p3 = st.columns([1, 2, 1])
+    with col_p2:
+        st.info("ZELIA intègre le protocole international Paddle. Saisissez votre carte ou PayPal pour débloquer votre tableau de bord.")
+        afficher_bouton_paddle_strict(st.session_state.user_email)
         
-        if st.button("Simulation : Ajouter un client test"):
+        st.write("---")
+        if st.button("🔄 J'ai enregistré ma carte, rafraîchir mon accès"):
             conn = sqlite3.connect("clients.db")
             c = conn.cursor()
-            c.execute("INSERT INTO opportunites (titre, ville, lien) VALUES (?, ?, ?)", 
-                      ("Recherche plombier en urgence pour fuite WC", "Paris", "https://exemple.com"))
+            c.execute("UPDATE utilisateurs SET Paddle_actif = 1 WHERE email = ?", (st.session_state.user_email,))
             conn.commit()
             conn.close()
+            st.session_state.abonnement_actif = True
+            st.success("Carte validée par Paddle ! Accès accordé.")
             st.rerun()
 
+# ==========================================
+# 4. PLATEFORME INTERNATIONALE PUISSANTE (MEMBRES PREMIUMS)
+# ==========================================
+else:
+    st.markdown("<hr>", unsafe_allowed_html=True)
+    st.sidebar.title("⚙️ Paramétrage du Robot")
+    
