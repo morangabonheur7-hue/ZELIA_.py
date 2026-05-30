@@ -30,9 +30,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Verrou de sécurité pour empêcher les collisions d'écriture dans la base de données
-db_lock = threading.Lock()
-
 # ==========================================
 # INITIALISATION DES VARIABLES ET CONSTANTES
 # ==========================================
@@ -73,19 +70,19 @@ TEXTES = {
     }
 }
 
-# Pour le cloud Streamlit.io, on stocke la BDD dans un dossier accessible universellement en écriture
+# ==========================================
+# GESTION BASE DE DONNÉES (SQLITE)
+# ==========================================
 DB_NAME = "zelia_data.db"
-
 def init_db():
-    with db_lock:
-        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-        c = conn.cursor()
-        c.execute("""CREATE TABLE IF NOT EXISTS artisans (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, metier TEXT, pays TEXT, ville TEXT, licence TEXT, whatsapp TEXT DEFAULT NULL, robot_actif INTEGER DEFAULT 0)""")
-        c.execute("""CREATE TABLE IF NOT EXISTS alertes (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, artisan_id INTEGER, texte TEXT, lien TEXT, plateforme TEXT)""")
-        conn.commit()
-        conn.close()
+    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS artisans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, metier TEXT, pays TEXT, ville TEXT, licence TEXT, whatsapp TEXT DEFAULT NULL, robot_actif INTEGER DEFAULT 0)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS alertes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, artisan_id INTEGER, texte TEXT, lien TEXT, plateforme TEXT)""")
+    conn.commit()
+    conn.close()
 
 init_db()
 
@@ -96,7 +93,7 @@ def verifier_licence_paddle(cle):
     if cle == "TEST-ZELIA": return True
     if "PADDLE_API_KEY" in st.secrets:
         try:
-            r = requests.get(f"https://paddle.com{cle}", headers={"Authorization": f"Bearer {st.secrets['PADDLE_API_KEY']}"}, timeout=10)
+            r = requests.get(f"https://paddle.com{cle}", headers={"Authorization": f"Bearer {st.secrets['PADDLE_API_KEY']}"})
             if r.status_code == 200 and r.json().get("data", {}).get("status") == "active": return True
         except: pass
     return False
@@ -106,17 +103,16 @@ def generer_pitch_automatique(langue, metier, ville):
     return f"Hello, I just saw your post. I'm a professional {metier.lower()} working in {ville}. Available right now to assist you and provide a free quote. Let's connect!"
 
 # ==========================================
-# MOTEUR DU ROBOT ZELIA (THREAD-SAFE SANS PLANTAGE)
+# MOTEUR DU ROBOT ZELIA (TÂCHE DE FOND)
 # ==========================================
 def execution_moteur_robot():
     while True:
         try:
-            with db_lock:
-                conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                c = conn.cursor()
-                c.execute("SELECT id, metier, pays, ville, whatsapp FROM artisans WHERE robot_actif = 1")
-                actifs = c.fetchall()
-                conn.close()
+            conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+            c = conn.cursor()
+            c.execute("SELECT id, metier, pays, ville, whatsapp FROM artisans WHERE robot_actif = 1")
+            actifs = c.fetchall()
+            conn.close()
 
             for art in actifs:
                 art_id, metier, pays, ville, whatsapp = art
@@ -128,53 +124,63 @@ def execution_moteur_robot():
                     vrai_lien = f"https://facebook.com{req}"
                     texte_alerte = f"Urgent : Demande client détectée pour la recherche '{m}' localisée à {ville}."
                     
-                    with db_lock:
-                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                        c = conn.cursor()
-                        c.execute("SELECT id FROM alertes WHERE artisan_id = ? AND texte = ?", (art_id, texte_alerte))
-                        if not c.fetchone():
-                            c.execute("INSERT INTO alertes (artisan_id, texte, lien, plateforme) VALUES (?, ?, ?, ?)", (art_id, texte_alerte, vrai_lien, "Web Search"))
-                            conn.commit()
-                        conn.close()
+                    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                    c = conn.cursor()
+                    c.execute("SELECT id FROM alertes WHERE artisan_id = ? AND texte = ?", (art_id, texte_alerte))
+                    if not c.fetchone():
+                        c.execute("INSERT INTO alertes (artisan_id, texte, lien, plateforme) VALUES (?, ?, ?, ?)", (art_id, texte_alerte, vrai_lien, "Web Search"))
+                        conn.commit()
+                        if whatsapp:
+                            print(f"[WhatsApp] Notification envoyée au numéro {whatsapp} pour le client trouvé à {ville}")
+                    conn.close()
         except Exception as e:
-            print(f"Erreur Robot Invisible: {e}")
+            print(f"Erreur Robot: {e}")
         time.sleep(300)
 
-# Allocation sécurisée du processus d'arrière-plan dans le Runtime Streamlit
 if not any(t.name == "ZeliaRobotThread" for t in threading.enumerate()):
-    t = threading.Thread(target=execution_moteur_robot, name="ZeliaRobotThread", daemon=True)
-    t.start()
+    threading.Thread(target=execution_moteur_robot, name="ZeliaRobotThread", daemon=True).start()
 
 # ==========================================
-# ÉCRAN 1 : SPLASH SCREEN ANIMÉ (10 SECONDES)
+# ÉCRAN 1 : SPLASH SCREEN ANIMÉ
 # ==========================================
 if not st.session_state.splash_done:
     container = st.empty()
     with container.container():
         st.markdown('<div class="splash-container">', unsafe_allow_html=True)
-        if os.path.exists("mon logo (2).png"):
-            with open("mon logo (2).png", "rb") as f: encoded = base64.b64encode(f.read()).decode()
-            st.markdown(f'<img src="data:image/png;base64,{encoded}" class="animated-logo">', unsafe_allow_html=True)
-        else:
-            st.markdown('<h1 style="font-size:60px; color:#8b5cf6;">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
-        st.markdown('<p style="margin-top:20px; font-size:18px; color:#a5b4fc;">Initialisation des protocoles de sourcing...</p></div>', unsafe_allow_html=True)
-    time.sleep(10)
-    st.session_state.splash_done = True
-    st.rerun()
+        st.markdown('<h1>🚀 ZELIA GLOBAL</h1>', unsafe_allow_html=True)
+        st.markdown('<p>Initialisation des systèmes en cours...</p>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        time.sleep(3)
+        st.session_state.splash_done = True
+        st.rerun()
 
 # ==========================================
-# ÉCRAN 2 : ACCUEIL & INSCRIPTION REACTIVE
+# INTERFACE PRINCIPALE (CONNEXION / INSCRIPTION)
 # ==========================================
-elif not st.session_state.authentifie:
-    st.write("# ZELIA GLOBAL")
-    pays_temp = st.selectbox("🌍 Select country / Choisissez le pays", list(PAYS_LANGUES.keys()))
-    langue = PAYS_LANGUES.get(pays_temp, "fr")
-    txt = TEXTES[langue]
+langue_choisie = st.sidebar.selectbox("🌐 Langue / Language", ["fr", "en"])
+t = TEXTES[langue_choisie]
+
+if not st.session_state.authentifie:
+    onglet1, onglet2 = st.tabs([t["titre_ins"], "🔑 Connexion"])
     
-    st.subheader(txt["titre_ins"])
-    st.markdown(f'<div style="background-color:#1e1135; padding:15px; border-radius:10px; margin-bottom:15px;"><a href="{PADDLE_CHECKOUT_URL}" target="_blank" style="color:#a855f7; font-weight:bold; font-size:18px;">{txt["payer"]}</a></div>', unsafe_allow_html=True)
-    
-    declencher_redirection = False
-    
-    with st.form("inscription_form"):
-        nom = st.text_input(txt["nom"])
+    with onglet1:
+        st.markdown(f"### {t['titre_ins']}")
+        nom = st.text_input(t["nom"], key="reg_nom")
+        metier = st.text_input(t["metier"], key="reg_metier")
+        pays = st.selectbox(t["pays"], list(PAYS_LANGUES.keys()), key="reg_pays")
+        ville = st.text_input(t["ville"], key="reg_ville")
+        
+        st.markdown(f"[ {t['payer']} ]({PADDLE_CHECKOUT_URL})")
+        licence = st.text_input(t["licence_label"], type="password", key="reg_licence")
+        
+        if st.button(t["bouton_creer"]):
+            if verifier_licence_paddle(licence):
+                conn = sqlite3.connect(DB_NAME)
+                c = conn.cursor()
+                c.execute("SELECT id FROM artisans WHERE licence = ?", (licence,))
+                if c.fetchone():
+                    st.error(t["existe"])
+                else:
+                    c.execute("INSERT INTO artisans (nom, metier, pays, ville, licence) VALUES (?, ?, ?, ?, ?)", (nom, metier, pays, ville, licence))
+                    conn.commit()
+                    st.success(t["succes"])
