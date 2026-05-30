@@ -1,4 +1,4 @@
-import streamlit as st
+            import streamlit as st
 import sqlite3
 import bcrypt
 import os
@@ -6,207 +6,192 @@ import base64
 import pandas as pd
 import httpx
 import urllib.parse
+import time
 from bs4 import BeautifulSoup
+from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
 import streamlit.components.v1 as components
 
 # ==========================================
-# CONFIGURATION PAGE & PADDLE
+# CONFIGURATION DE LA PAGE
 # ==========================================
-st.set_page_config(page_title="ZELIA - Sourcing Mondial", page_icon="🚀", layout="wide")
-PADDLE_VENDOR_ID = "345487"
-PADDLE_PRICE_ID = "pri_01ksk58k14szw6a8dys7y7as0r"
+st.set_page_config(page_title="ZELIA GLOBAL - Sourcing Haute Précision", page_icon="🚀", layout="wide")
 
-# --- CONFIGURATION DU ROBOT INTÉGRÉ ---
+# ==========================================
+# CONSTANTES & CONFIGURATION PADDLE
+# ==========================================
+PRIX_ABONNEMENT = "29.99€ / mois"
+PADDLE_VENDOR_ID = "345487"  
+PADDLE_PRICE_ID = "pri_01ksk58k14szw6a8dys7y7as0r"  
+
+TRADUCTIONS = {
+    "fr": {
+        "titre_principal": "ZELIA GLOBAL",
+        "sous_titre": "Le robot d'IA qui détecte vos chantiers toutes les 5 minutes.",
+        "label_pays": "🌍 Pays cible",
+        "label_ville": "🏙️ Ville ou zone exacte (Ex: Paris, Lyon, Marseille)",
+        "label_niche": "🛠️ Corps de métier",
+        "label_bouton": "⚡ Activer la Surveillance Automatique (Toutes les 5 min)",
+        "recherche_en_cours": "🤖 Le robot ZELIA infiltre le web pour vos zones cibles...",
+        "scan_termine": "✅ Scan initial réussi ! Surveillance continue activée.",
+        "titre_tableau": "📈 Flux de Chantiers Détectés en Temps Réel",
+        "aucun_resultat": "💡 En attente du prochain scan de 5 minutes ou modifiez votre zone.",
+        "connexion": "🔒 Connexion Membre",
+        "inscription": "📝 S'inscrire au Club",
+        "email": "Adresse Email Professionnelle",
+        "password": "Mot de passe sécurisé",
+        "btn_connecter": "Se connecter",
+        "btn_inscrire": "Créer mon compte",
+        "deconnexion": "🚪 Fermer la session",
+        "statut": "Statut : Artisan Premium - ",
+        "export": "📥 Exporter les leads au format CSV",
+        "payer_bouton": "💳 Activer mon Accès Premium - 29,99€",
+        "bloque_paiement": "⚠️ Votre abonnement est expiré ou inactif. Veuillez régulariser ci-dessous.",
+        "msg_auto": "📝 Message Automatique Généré"
+    },
+    "en": {
+        "titre_principal": "ZELIA GLOBAL",
+        "sous_titre": "The AI bot tracking your next contracts every 5 minutes.",
+        "label_pays": "🌍 Target Country",
+        "label_ville": "🏙️ Enter exact city or zone (e.g., London, New York)",
+        "label_niche": "🛠️ Trade / Niche",
+        "label_bouton": "⚡ Activate Automatic Surveillance (Every 5 min)",
+        "recherche_en_cours": "🤖 ZELIA bot is crawling the web for your specific areas...",
+        "scan_termine": "✅ Initial scan successful! Continuous tracking active.",
+        "titre_tableau": "📈 Real-Time Live Lead Stream",
+        "aucun_resultat": "💡 Waiting for the next 5-minute automated crawl...",
+        "connexion": "🔒 Premium Login",
+        "inscription": "📝 Register",
+        "email": "Professional Email Address",
+        "password": "Password",
+        "btn_connecter": "Login",
+        "btn_inscrire": "Create Account",
+        "deconnexion": "🚪 Logout",
+        "statut": "Status: Premium Member - ",
+        "export": "📥 Export Leads to CSV",
+        "payer_bouton": "💳 Unlock Premium Access - 29.99€",
+        "bloque_paiement": "⚠️ Your subscription is inactive. Please complete payment below.",
+        "msg_auto": "📝 Generated Pitch Message"
+    }
+}
+
 DICTIONNAIRE_MUNDIAL = {
     "Plombier": {"fr": "plombier", "en": "plumber"},
     "Électricien": {"fr": "electricien", "en": "electrician"},
     "Mécanicien": {"fr": "mecanicien", "en": "mechanic"},
     "Menuisier": {"fr": "menuisier", "en": "carpenter"},
-    "Serrurier": {"fr": "serrurier", "en": "locksmith"}
-}
-EMPREINTES_LANGUES = {
-    "fr": ["cherche", "besoin", "recommande", "urgence"],
-    "en": ["looking for", "need a", "recommend", "urgent"]
-}
-PAYS_LANGUES = {"France": "fr", "Belgique": "fr", "Canada": "en", "Royaume-Uni": "en", "États-Unis": "en"}
-VILLES_MONDE = {
-    "France": ["Paris", "Lyon", "Marseille"],
-    "Royaume-Uni": ["London", "Manchester"],
-    "Canada": ["Toronto", "Montréal"]
+    "Serrurier": {"fr": "serrurier", "en": "locksmith"},
+    "Peintre": {"fr": "peintre", "en": "painter"},
+    "Maçon": {"fr": "maçon", "en": "mason"}
 }
 
+PAYS_LANGUES = {"France": "fr", "Belgique": "fr", "Canada": "en", "Royaume-Uni": "en", "États-Unis": "en"}
+
 # ==========================================
-# CSS PREMIUM
+# DESIGN ET STYLE PREMIUM HAUTE VALEUR
 # ==========================================
 st.markdown("""
 <style>
-.logo-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 0px 10px 0px; }
-.animated-logo { width: 250px; height: auto; animation: pulse 3s infinite ease-in-out; border-radius: 20px; box-shadow: 0px 15px 50px rgba(0, 168, 107, 0.4); }
+.logo-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px 0px; }
+.animated-logo { width: 400px; height: auto; animation: pulse 2.5s infinite ease-in-out; border-radius: 28px; box-shadow: 0px 25px 70px rgba(0, 210, 120, 0.6); }
 @keyframes pulse {
-    0% { transform: scale(1); box-shadow: 0px 15px 50px rgba(0, 168, 107, 0.3); }
-    50% { transform: scale(1.06); box-shadow: 0px 25px 60px rgba(0, 168, 107, 0.6); }
-    100% { transform: scale(1); box-shadow: 0px 15px 50px rgba(0, 168, 107, 0.3); }
+    0% { transform: scale(1); box-shadow: 0px 25px 70px rgba(0, 210, 120, 0.4); }
+    50% { transform: scale(1.03); box-shadow: 0px 35px 90px rgba(0, 210, 120, 0.8); }
+    100% { transform: scale(1); box-shadow: 0px 25px 70px rgba(0, 210, 120, 0.4); }
 }
-.main-title { font-size: 46px !important; font-weight: 900; background: linear-gradient(45deg, #00A86B, #00FF9D); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: 15px; letter-spacing: 2px; }
-div.stButton > button { background: linear-gradient(135deg, #00A86B 0%, #007d50 100%) !important; color: white !important; font-weight: bold !important; border-radius: 12px !important; border: none !important; padding: 12px 25px !important; width: 100%; }
+.main-title { font-size: 60px !important; font-weight: 900; background: linear-gradient(135deg, #00FF9D, #00A86B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: 20px; letter-spacing: 4px; }
+div.stButton > button { background: linear-gradient(135deg, #00FF9D 0%, #007d50 100%) !important; color: #022013 !important; font-weight: 800 !important; border-radius: 14px !important; border: none !important; padding: 16px 32px !important; width: 100%; font-size: 18px !important; text-transform: uppercase; transition: all 0.3s ease; }
+div.stButton > button:hover { transform: translateY(-3px); box-shadow: 0px 12px 30px rgba(0, 255, 157, 0.5); color: white !important; }
+.welcome-overlay { padding: 40px; background: radial-gradient(circle, rgba(0,255,157,0.15) 0%, rgba(0,125,80,0.05) 100%); border: 2px dashed #00FF9D; border-radius: 20px; text-align: center; margin-bottom: 30px; }
+.lead-card { background: #111; padding: 20px; border-radius: 14px; border-left: 5px solid #00FF9D; margin-bottom: 15px; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
 # BASE DE DONNÉES
 # ==========================================
-DB_NAME = "clients.db"
+DB_NAME = "zelia_premium.db"
 def get_connection(): 
     return sqlite3.connect(DB_NAME, check_same_thread=False)
 
 def initialiser_bdd():
-    conn = get_connection()
-    c = conn.cursor()
+    conn = get_connection(); c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS utilisateurs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                    email TEXT UNIQUE, 
-                    password TEXT, 
-                    device_id TEXT, 
-                    Paddle_actif INTEGER DEFAULT 0, 
-                    service_choisi TEXT DEFAULT 'Tous', 
-                    pays_choisi TEXT DEFAULT 'Tous')""")
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, device_id TEXT, Paddle_actif INTEGER DEFAULT 0)""")
     c.execute("""CREATE TABLE IF NOT EXISTS opportunites (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                    titre TEXT, 
-                    ville TEXT, 
-                    pays TEXT DEFAULT 'Global', 
-                    niche TEXT, 
-                    lien TEXT UNIQUE, 
-                    date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-    conn.commit()
-    conn.close()
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, titre TEXT, ville TEXT, pays TEXT, niche TEXT, lien TEXT UNIQUE, date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    conn.commit(); conn.close()
 initialiser_bdd()
 
 def extraire_logo_base64(chemin_fichier):
     if os.path.exists(chemin_fichier):
-        with open(chemin_fichier, "rb") as f: 
-            return base64.b64encode(f.read()).decode()
+        with open(chemin_fichier, "rb") as f: return base64.b64encode(f.read()).decode()
     return None
 
-# --- FONCTION DU ROBOT RECORRIGÉE ---
-def executer_robot_instantane(pays, métier):
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    p_cible = "France" if pays == "Tous" else pays
-    m_cible = "Plombier" if métier == "Tous" else métier
-    langue = PAYS_LANGUES.get(p_cible, "fr")
-    villes = VILLES_MONDE.get(p_cible, ["Paris"])
-    mot_traduit = DICTIONNAIRE_MUNDIAL.get(m_cible, {}).get(langue, m_cible.lower())
+# ==========================================
+# ROBOT DE RECHERCHE CHRONO 5 MINUTES
+# ==========================================
+def executer_scan_moteur(pays, metier, ville_saisie):
+    if not ville_saisie:
+        return
+        
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8"
+    }
     
-    conn = get_connection()
-    c = conn.cursor()
+    langue = PAYS_LANGUES.get(pays, "fr")
+    mot_traduit = DICTIONNAIRE_MUNDIAL.get(metier, {}).get(langue, metier.lower())
     
-    with httpx.Client(headers=headers, follow_redirects=True) as client:
-        for ville in villes:
-            phrase = f'"je cherche un {mot_traduit}" {ville}' if langue == "fr" else f'"looking for {mot_traduit}" {ville}'
-            # Correction de l'url pour l'extraction HTML DuckDuckGo
-            url = f"https://duckduckgo.com{urllib.parse.quote(phrase)}"
-            try:
-                res = client.get(url, timeout=10.0)
-                if res.status_code == 200:
-                    soup = BeautifulSoup(res.text, "html.parser")
-                    for body in soup.find_all("div", class_="result__body")[:5]:
-                        snippet_el = body.find("a", class_="result__snippet")
-                        lien_el = body.find("a", class_="result__url")
+    conn = get_connection(); c = conn.cursor()
+    with httpx.Client(headers=headers, follow_redirects=True, timeout=12.0) as client:
+        query_str = f"cherche {mot_traduit} {ville_saisie}" if langue == "fr" else f"looking for {mot_traduit} {ville_saisie}"
+        url = f"https://duckduckgo.com{urllib.parse.quote(query_str)}"
+        
+        try:
+            res = client.get(url)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                elements = soup.find_all("div", class_="result")
+                
+                for body in elements[:6]:
+                    snippet_el = body.find("a", class_="result__snippet")
+                    lien_el = body.find("a", class_="result__url")
+                    
+                    if snippet_el and lien_el:
+                        txt = snippet_el.get_text(strip=True)
+                        lnk = lien_el.get("href", "")
                         
-                        if snippet_el and lien_el:
-                            snippet_text = snippet_el.get_text()
-                            lien_url = lien_el.get("href", "")
-                            
-                            if any(m in snippet_text.lower() for m in EMPREINTES_LANGUES[langue]):
-                                try:
-                                    c.execute("INSERT INTO opportunites (titre, ville, pays, niche, lien) VALUES (?, ?, ?, ?, ?)", 
-                                              (snippet_text[:120]+"...", ville, p_cible, m_cible, lien_url))
-                                except sqlite3.IntegrityError:
-                                    pass # Lien déjà existant
+                        try:
+                            c.execute("""INSERT INTO opportunites (titre, ville, pays, niche, lien) 
+                                         VALUES (?, ?, ?, ?, ?)""", (txt[:140] + "...", ville_saisie, pays, metier, lnk))
+                        except sqlite3.IntegrityError:
+                            pass
                 conn.commit()
-            except Exception: 
-                pass
+        except Exception:
+            pass
     conn.close()
 
+if "scheduler" not in st.session_state:
+    st.session_state.scheduler = BackgroundScheduler()
+    st.session_state.scheduler.start()
+
 # ==========================================
-# UTILISATEURS & SESSION (CORRIGÉ)
+# ENREGISTREMENT ET SESSIONS
 # ==========================================
-if "device_fingerprint" not in st.session_state: 
-    st.session_state.device_fingerprint = base64.b64encode(os.urandom(16)).decode()
+if "device_fingerprint" not in st.session_state: st.session_state.device_fingerprint = base64.b64encode(os.urandom(16)).decode()
 if "connecte" not in st.session_state: st.session_state.connecte = False
 if "user_email" not in st.session_state: st.session_state.user_email = ""
-if "abonnement_actif" not in st.session_state: st.session_state.abonnement_actif = False
+if "date_connexion" not in st.session_state: st.session_state.date_connexion = 0.0
 
 def inscrire_utilisateur(email, password, dev_id):
     conn = get_connection(); c = conn.cursor()
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     try:
-        c.execute("INSERT INTO utilisateurs (email, password, device_id) VALUES (?, ?, ?)", (email, hashed, dev_id))
+        c.execute("INSERT INTO utilisateurs (email, password, device_id, Paddle_actif) VALUES (?, ?, ?, 0)", (email, hashed, dev_id))
         conn.commit(); return "ok"
     except sqlite3.IntegrityError: return "exists"
     finally: conn.close()
 
 def verifier_utilisateur(email, password):
     conn = get_connection(); c = conn.cursor()
-    c.execute("SELECT password, Paddle_actif FROM utilisateurs WHERE email = ?", (email,))
-    res = c.fetchone(); conn.close()
-    if res:
-        mot_de_passe_hash = res[0]
-        paddle_statut = bool(res[1])
-        if bcrypt.checkpw(password.encode("utf-8"), mot_de_passe_hash.encode("utf-8")):
-            return True, paddle_statut
-    return False, False
-
-# ==========================================
-# INTERFACE GRAPHIQUE
-# ==========================================
-st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-logo_data = extraire_logo_base64("logo (2).png")
-if logo_data: 
-    st.markdown(f'<img src="data:image/png;base64,{logo_data}" class="animated-logo">', unsafe_allow_html=True)
-else: 
-    st.markdown('<div style="font-size:90px; text-align:center;">🚀</div>', unsafe_allow_html=True)
-st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-if not st.session_state.connecte:
-    st.markdown("<h3 style='text-align:center; color:#bbb;'>Détectez vos futurs clients partout dans le monde. Connectez-vous.</h3>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c2:
-        tab_login, tab_register = st.tabs(["🔒 Se connecter", "📝 S'inscrire"])
-        
-        with tab_login:
-            em = st.text_input("Adresse Email", key="l_em")
-            pw = st.text_input("Mot de passe", type="password", key="l_pw")
-            if st.button("Connexion", key="btn_login"):
-                if em and pw:
-                    success, active = verifier_utilisateur(em, pw)
-                    if success:
-                        st.session_state.connecte = True
-                        st.session_state.user_email = em
-                        st.session_state.abonnement_actif = active
-                        st.success("Connexion réussie !")
-                        st.rerun()
-                    else:
-                        st.error("Identifiants incorrects.")
-                else:
-                    st.warning("Veuillez remplir tous les champs.")
-                    
-        with tab_register:
-            reg_em = st.text_input("Nouvelle Adresse Email", key="r_em")
-            reg_pw = st.text_input("Nouveau Mot de passe", type="password", key="r_pw")
-            if st.button("Créer un compte", key="btn_reg"):
-                if reg_em and reg_pw:
-                    status = inscrire_utilisateur(reg_em, reg_pw, st.session_state.device_fingerprint)
-                    if status == "ok":
-                        st.success("Compte créé avec succès ! Connectez-vous.")
-                    elif status == "exists":
-                        st.error("Cet email ou cet appareil est déjà enregistré.")
-                else:
-                    st.warning("Veuillez remplir tous les champs.")
-else:
-    st.sidebar.write(f"Connecté en tant que : {st.session_state.user_email}")
-    if st.sidebar.button("Déconnexion"):
-        st.session_state.connecte = False
-        st.rerun()
-
