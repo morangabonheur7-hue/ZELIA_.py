@@ -151,29 +151,35 @@ if st.session_state.ecran_accueil:
         st.rerun()
 
 # ==========================================
-# ÉCRAN 2 : INSCRIPTION / CONNEXION
+# ÉCRAN 2 : CONNEXION / INSCRIPTION
 # ==========================================
 elif not st.session_state.authentifie:
-    st.markdown('<h1 class="main-title">🔒 ACCÈS SÉCURISÉ ZELIA</h1>', unsafe_allow_html=True)
-    col_left, col_right = st.columns(2)
+    st.markdown('<h2 style="text-align:center; color:#c084fc;">Accès Sécurisé</h2>', unsafe_allow_html=True)
     
-    with col_left:
-        st.markdown("<div class='dashboard-card'><p class='dashboard-title'>📝 Créer un Compte</p>", unsafe_allow_html=True)
-        r_email = st.text_input("Votre Email Pro", key="reg_email")
-        r_pass = st.text_input("Mot de passe", type="password", key="reg_pass")
-        r_metier = st.selectbox("Votre Métier", list(DICTIONNAIRE_MUNDIAL.keys()), key="reg_metier")
-        r_pays = st.selectbox("Votre Pays", list(PAYS_LANGUES.keys()), key="reg_pays")
-        r_ville = st.text_input("Votre Ville exacte", placeholder="Ex: Paris, New York", key="reg_ville")
-        
-        if st.button("Valider l'inscription"):
-            if r_email and r_pass and r_ville:
-                hashed = bcrypt.hashpw(r_pass.encode('utf-8'), bcrypt.gensalt())
-                try:
-                    with get_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("INSERT INTO utilisateurs (email, password, metier, pays, ville, est_paye) VALUES (?, ?, ?, ?, ?, 0)", (r_email, hashed, r_metier, r_pays, r_ville))
-                        conn.commit()
-                    st.success("Compte enregistré ! Connectez-vous à droite pour activer votre accès.")
-                except sqlite3.IntegrityError:
-                    st.error("Cet email existe déjà.")
-else:
+    onglet = st.tabs(["Connexion", "Inscription"])
+    
+    with onglet[0]:
+        email_login = st.text_input("Adresse Email", key="login_email")
+        pass_login = st.text_input("Mot de passe", type="password", key="login_pass")
+        if st.button("Se connecter"):
+            with get_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT password, metier, pays, ville, est_paye FROM utilisateurs WHERE email = ?", (email_login,))
+                user = c.fetchone()
+                if user and bcrypt.checkpw(pass_login.encode('utf-8'), user[0]):
+                    st.session_state.authentifie = True
+                    st.session_state.user_data = {
+                        "email": email_login, "metier": user[1], "pays": user[2], "ville": user[3], "est_paye": user[4]
+                    }
+                    st.success("Connexion réussie !")
+                    st.rerun()
+                else:
+                    st.error("Identifiants incorrects.")
+
+    with onglet[1]:
+        email_reg = st.text_input("Adresse Email", key="reg_email")
+        pass_reg = st.text_input("Mot de passe", type="password", key="reg_pass")
+        metier_reg = st.selectbox("Votre Métier", list(DICTIONNAIRE_MUNDIAL.keys()))
+        pays_reg = st.selectbox("Votre Pays", list(PAYS_LANGUES.keys()))
+        ville_reg = st.text_input("Votre Ville")
+
