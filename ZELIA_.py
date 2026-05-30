@@ -77,9 +77,10 @@ def extraire_logo_base64(chemin_fichier):
     return None
 
 # ==========================================
-# BASE DE DONNÉES
+# BASE DE DONNÉES (CORRIGÉE POUR STREAMLIT CLOUD)
 # ==========================================
-DB_NAME = "zelia_premium.db"
+DB_NAME = "/tmp/zelia_premium.db" if not os.environ.get("STREAMLIT_RUNTIME_MOCK") else "zelia_premium.db"
+
 def get_connection(): 
     return sqlite3.connect(DB_NAME, check_same_thread=False)
 
@@ -114,157 +115,60 @@ def generer_pitch_automatique(langue, metier, ville):
         return f"Hello, I just saw your request. I'm a professional {metier.lower()} working in {ville}. I'm available right now to help you and provide a free quote. Let's connect!"
 
 # ==========================================
-# FONCTION DU TABLEAU DE BORD (ROBOT CHRONO 5 MIN)
+# FONCTION DU TABLEAU DE BORD (CORRIGÉE)
 # ==========================================
 @st.fragment(run_every=300)
 def afficher_flux_robot():
-    # Récupération sécurisée des données de session à l'intérieur du fragment
     data = st.session_state.get("user_data", {})
     pays = data.get("pays", "France")
     metier = data.get("metier", "Plombier")
     ville = data.get("ville", "Paris")
     langue_auto = PAYS_LANGUES.get(pays, "fr")
 
-    st.markdown("### 📈 Flux de Demandes Clients Détectés en Direct")
+    st.markdown("🔍 *Le robot ZELIA analyse le web en arrière-plan...*")
     leads = executer_scan_robot(pays, metier, ville, langue_auto)
     
-    for item in leads:
-        pitch = generer_pitch_automatique(langue_auto, metier, ville)
-        st.markdown(f"""
-        <div class="lead-card">
-            <span style="background:#8b5cf6; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold;">{item['source']}</span>
-            <p style="font-size:16px; margin-top:10px; font-weight:600;">🎯 {item['texte']}</p>
-            <div class="pitch-box"><strong>Message automatique généré par l'IA :</strong><br>{pitch}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.link_button("👉 Répondre au particulier & Envoyer le message", item["lien"])
-        st.markdown("<br>", unsafe_allow_html=True)
-
-# ==========================================
-# ÉCRAN 1 : SPLASH SCREEN (LOGO UNIQUE EN PREMIER)
-# ==========================================
-if st.session_state.ecran_accueil:
-    logo_data = extraire_logo_base64("logo (2).png")
-    st.markdown('<div style="height: 10vh;"></div>', unsafe_allow_html=True)
-    if logo_data:
-        st.markdown(f'<div class="logo-container"><img src="data:image/png;base64,{logo_data}" class="animated-logo"></div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="logo-container"><div class="animated-logo" style="font-size:80px; background:#1e1135; padding:30px; display:inline-block;">🚀</div></div>', unsafe_allow_html=True)
+    if leads:
+        st.toast(f"🚨 ALERTE : Le robot a détecté {len(leads)} nouveaux clients potentiels !", icon="🤖")
+        st.markdown("### 📈 Flux de Demandes Clients Détectés en Direct")
         
-    st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Intelligence Artificielle de Detection de Chantiers Mondiaux</p>', unsafe_allow_html=True)
+        for item in leads:
+            pitch = generer_pitch_automatique(langue_auto, metier, ville)
+            st.markdown(f"""
+            <div class="lead-card" style="border-left: 6px solid #ef4444; background: #221338;">
+                <span style="background:#ef4444; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; color:white;">🚨 CLIENT DÉTECTÉ</span>
+                <span style="background:#8b5cf6; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; margin-left:10px;">{item['source']}</span>
+                <p style="font-size:16px; margin-top:10px; font-weight:600;">🎯 Besoin : {item['texte']}</p>
+                <div class="pitch-box"><strong>Message automatique prêt à être envoyé :</strong><br>{pitch}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.link_button("👉 Accéder à la source du client", item["lien"])
 
-    # Exemple d'appel du fragment pour test sur l'écran d'accueil si besoin
+# ==========================================
+# INTERFACE PRINCIPALE DE L'APPLICATION
+# ==========================================
+def main():
+    st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Sourcing Haute Précision</p>', unsafe_allow_html=True)
+
+    # Affichage des boutons de contrôle du Robot dans la barre latérale
+    st.sidebar.title("🤖 Robot Contrôle")
+    if st.session_state.robot_allume:
+        st.sidebar.success("Le robot est actuellement : ALLUMÉ")
+        if st.sidebar.button("🔴 Éteindre le robot"):
+            st.session_state.robot_allume = False
+            st.rerun()
+    else:
+        st.sidebar.warning("Le robot est actuellement : ÉTEINT")
+        if st.sidebar.button("🟢 Allumer le robot"):
+            st.session_state.robot_allume = True
+            st.rerun()
+
+    # Flux d'affichage principal
     if st.session_state.robot_allume:
         afficher_flux_robot()
-# ==========================================
-# EXTENSION : LOGIQUE DE NAVIGATION & AUTHENTIFICATION
-# ==========================================
-# (Copiez ceci directement à la suite de votre code pour qu'il fonctionne)
+    else:
+        st.info("Le robot est en veille. Activez-le depuis la barre latérale pour recevoir les opportunités clients.")
 
-def verifier_utilisateur(email, password):
-    with get_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT password, metier, pays, ville, est_paye FROM utilisateurs WHERE email = ?", (email,))
-        user = c.fetchone()
-        if user and bcrypt.checkpw(password.encode('utf-8'), user[0]):
-            return {"email": email, "metier": user[1], "pays": user[2], "ville": user[3], "est_paye": user[4]}
-    return None
-
-def inscrire_utilisateur(email, password, metier, pays, ville):
-    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-    try:
-        with get_connection() as conn:
-            c = conn.cursor()
-            c.execute("INSERT INTO utilisateurs (email, password, metier, pays, ville) VALUES (?, ?, ?, ?, ?)",
-                      (email, hashed, metier, pays, ville))
-            conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False
-
-# Gestion des écrans
-if st.session_state.ecran_accueil:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("🚀 Entrer dans l'application"):
-            st.session_state.ecran_accueil = False
-            st.rerun()
-
-elif not st.session_state.authentifie:
-    st.markdown('<h2 class="main-title">Connexion / Inscription</h2>', unsafe_allow_html=True)
-    
-    onglet_connexion, onglet_inscription = st.tabs(["🔑 Connexion", "📝 Inscription"])
-    
-    with onglet_connexion:
-        email = st.text_input("Adresse Email", key="login_email")
-        password = st.text_input("Mot de passe", type="password", key="login_pass")
-        if st.button("Se connecter"):
-            user = verifier_utilisateur(email, password)
-            if user:
-                st.session_state.authentifie = True
-                st.session_state.user_data = user
-                st.success("Connexion réussie !")
-                st.rerun()
-            else:
-                st.error("Identifiants incorrects.")
-                
-    with onglet_inscription:
-        new_email = st.text_input("Adresse Email", key="reg_email")
-        new_password = st.text_input("Mot de passe", type="password", key="reg_pass")
-        
-        liste_metiers = list(DICTIONNAIRE_MUNDIAL.keys())
-        liste_pays = list(PAYS_LANGUES.keys())
-        
-        new_metier = st.selectbox("Votre Métier", liste_metiers)
-        new_pays = st.selectbox("Votre Pays", liste_pays)
-        new_ville = st.text_input("Votre Ville (Ex: Paris, Montreal)")
-        
-        if st.button("Créer mon compte"):
-            if new_email and new_password and new_ville:
-                if inscrire_utilisateur(new_email, new_password, new_metier, new_pays, new_ville):
-                    st.success("Compte créé avec succès ! Connectez-vous.")
-                else:
-                    st.error("Cet email est déjà utilisé.")
-            else:
-                st.error("Veuillez remplir tous les champs.")
-
-else:
-    # TABLEAU DE BORD PRINCIPAL
-    st.markdown(f'<h1 class="main-title">ZELIA DASHBOARD</h1>', unsafe_allow_html=True)
-    st.markdown(f'<p class="sub-title">Session active : {st.session_state.user_data["email"]} ({st.session_state.user_data["ville"]})</p>', unsafe_allow_html=True)
-    
-    col_profil, col_robot = st.columns([1, 2])
-    
-    with col_profil:
-        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-        st.markdown('<div class="dashboard-title">📍 Votre Profil Sourcing</div>', unsafe_allow_html=True)
-        st.write(f"**Métier ciblé :** {st.session_state.user_data['metier']}")
-        st.write(f"**Zone :** {st.session_state.user_data['ville']}, {st.session_state.user_data['pays']}")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-        st.markdown('<div class="dashboard-title">🤖 Statut du Robot</div>', unsafe_allow_html=True)
-        
-        if not st.session_state.robot_allume:
-            if st.button("🟢 Activer le Scan en Direct"):
-                st.session_state.robot_allume = True
-                st.rerun()
-        else:
-            if st.button("🔴 Arrêter le Scan"):
-                st.session_state.robot_allume = False
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        if st.button("🚪 Déconnexion"):
-            st.session_state.authentifie = False
-            st.session_state.robot_allume = False
-            st.session_state.user_data = {}
-            st.rerun()
-
-    with col_robot:
-        if st.session_state.robot_allume:
-            afficher_flux_robot()
-        else:
-            st.info("Le robot est en veille. Cliquez sur 'Activer le Scan en Direct' pour lancer la détection des chantiers.")
-    
+if __name__ == "__main__":
+    main()
