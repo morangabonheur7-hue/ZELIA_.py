@@ -117,7 +117,6 @@ def generer_pitch_automatique(langue, metier, ville):
 # ==========================================
 @st.fragment(run_every=300)
 def afficher_flux_robot(data, langue_auto):
-    # Affichage des résultats du scan si le robot est en marche
     st.markdown("### 📈 Flux de Demandes Clients Détectés en Direct")
     leads = executer_scan_robot(data["pays"], data["metier"], data["ville"], langue_auto)
     
@@ -176,3 +175,5 @@ elif not st.session_state.authentifie:
                         conn.commit()
                     st.success("Compte enregistré ! Connectez-vous à droite pour activer votre accès.")
                 except sqlite3.IntegrityError:
+                    st.error("Cet email existe déjà.")
+else:
