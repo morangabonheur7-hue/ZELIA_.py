@@ -4,8 +4,6 @@ import bcrypt
 import os
 import base64
 import urllib.parse
-import httpx
-from bs4 import BeautifulSoup
 
 # ==========================================
 # CONFIGURATION DE LA PAGE
@@ -115,6 +113,27 @@ def generer_pitch_automatique(langue, metier, ville):
         return f"Hello, I just saw your request. I'm a professional {metier.lower()} working in {ville}. I'm available right now to help you and provide a free quote. Let's connect!"
 
 # ==========================================
+# FONCTION DU TABLEAU DE BORD (ROBOT CHRONO 5 MIN)
+# ==========================================
+@st.fragment(run_every=300)
+def afficher_flux_robot(data, langue_auto):
+    # Affichage des résultats du scan si le robot est en marche
+    st.markdown("### 📈 Flux de Demandes Clients Détectés en Direct")
+    leads = executer_scan_robot(data["pays"], data["metier"], data["ville"], langue_auto)
+    
+    for item in leads:
+        pitch = generer_pitch_automatique(langue_auto, data["metier"], data["ville"])
+        st.markdown(f"""
+        <div class="lead-card">
+            <span style="background:#8b5cf6; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold;">{item['source']}</span>
+            <p style="font-size:16px; margin-top:10px; font-weight:600;">🎯 {item['texte']}</p>
+            <div class="pitch-box"><strong>Message automatique généré par l'IA :</strong><br>{pitch}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.link_button("👉 Répondre au particulier & Envoyer le message", item["lien"])
+        st.markdown("<br>", unsafe_allow_html=True)
+
+# ==========================================
 # ÉCRAN 1 : SPLASH SCREEN (LOGO UNIQUE EN PREMIER)
 # ==========================================
 if st.session_state.ecran_accueil:
@@ -157,24 +176,3 @@ elif not st.session_state.authentifie:
                         conn.commit()
                     st.success("Compte enregistré ! Connectez-vous à droite pour activer votre accès.")
                 except sqlite3.IntegrityError:
-                    st.error("Cet email existe déjà.")
-            else:
-                st.warning("Veuillez remplir tous les champs.")
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-    with col_right:
-        st.markdown("<div class='dashboard-card'><p class='dashboard-title'>🔑 Connexion</p>", unsafe_allow_html=True)
-        l_email = st.text_input("Email", key="log_email")
-        l_pass = st.text_input("Mot de passe", type="password", key="log_pass")
-        
-        if st.button("Se connecter"):
-            with get_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT email, password, metier, pays, ville, est_paye FROM utilisateurs WHERE email = ?", (l_email,))
-                user = c.fetchone()
-                
-                if user and bcrypt.checkpw(l_pass.encode('utf-8'), user[1].encode('utf-8') if isinstance(user[1], str) else user[1]):
-                    st.session_state.authentifie = True
-                    # Mapping ultra-précis pour éliminer définitivement l'écran vide
-                    st.session_state.user_data = {
-    
