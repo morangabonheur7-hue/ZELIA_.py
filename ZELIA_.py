@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 st.set_page_config(page_title="ZELIA GLOBAL - Sourcing Haute Precision", page_icon="🚀", layout="wide")
 
 # ==========================================
-# INITIALISATION DE L'ÉTAT DE LA SESSION (SESSION STATE)
+# INITIALISATION DE L'ÉTAT DE LA SESSION
 # ==========================================
 if "ecran_accueil" not in st.session_state:
     st.session_state.ecran_accueil = True  
@@ -21,6 +21,8 @@ if "authentifie" not in st.session_state:
     st.session_state.authentifie = False
 if "user_data" not in st.session_state:
     st.session_state.user_data = {}
+if "robot_allume" not in st.session_state:
+    st.session_state.robot_allume = False
 
 # ==========================================
 # CONSTANTES & CONFIGURATION PADDLE STRICTE
@@ -66,9 +68,6 @@ div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0px 10px 
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# FONCTION LOGO BASE64
-# ==========================================
 def extraire_logo_base64(chemin_fichier):
     if os.path.exists(chemin_fichier):
         try:
@@ -116,11 +115,10 @@ def generer_pitch_automatique(langue, metier, ville):
         return f"Hello, I just saw your request. I'm a professional {metier.lower()} working in {ville}. I'm available right now to help you and provide a free quote. Let's connect!"
 
 # ==========================================
-# ÉCRAN 1 : LE LOGO EN PREMIER (SPLASH SCREEN)
+# ÉCRAN 1 : SPLASH SCREEN (LOGO UNIQUE EN PREMIER)
 # ==========================================
 if st.session_state.ecran_accueil:
     logo_data = extraire_logo_base64("logo (2).png")
-    
     st.markdown('<div style="height: 10vh;"></div>', unsafe_allow_html=True)
     if logo_data:
         st.markdown(f'<div class="logo-container"><img src="data:image/png;base64,{logo_data}" class="animated-logo"></div>', unsafe_allow_html=True)
@@ -135,7 +133,7 @@ if st.session_state.ecran_accueil:
         st.rerun()
 
 # ==========================================
-# ÉCRAN 2 : CONNEXION / INSCRIPTION
+# ÉCRAN 2 : INSCRIPTION / CONNEXION
 # ==========================================
 elif not st.session_state.authentifie:
     st.markdown('<h1 class="main-title">🔒 ACCÈS SÉCURISÉ ZELIA</h1>', unsafe_allow_html=True)
@@ -172,10 +170,11 @@ elif not st.session_state.authentifie:
         if st.button("Se connecter"):
             with get_connection() as conn:
                 c = conn.cursor()
-                c.execute("SELECT email, metier, pays, ville, est_paye, password FROM utilisateurs WHERE email = ?", (l_email,))
+                c.execute("SELECT email, password, metier, pays, ville, est_paye FROM utilisateurs WHERE email = ?", (l_email,))
                 user = c.fetchone()
                 
-                # Correction bcrypt stricte pour éviter l'écran noir au login
-                if user and bcrypt.checkpw(l_pass.encode('utf-8'), user[5].encode('utf-8') if isinstance(user[5], str) else user[5]):
+                if user and bcrypt.checkpw(l_pass.encode('utf-8'), user[1].encode('utf-8') if isinstance(user[1], str) else user[1]):
                     st.session_state.authentifie = True
+                    # Mapping ultra-précis pour éliminer définitivement l'écran vide
+                    st.session_state.user_data = {
     
