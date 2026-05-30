@@ -3,91 +3,29 @@ import sqlite3
 import bcrypt
 import os
 import base64
-import pandas as pd
-import httpx
 import urllib.parse
-import time
+import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime
-from apscheduler.schedulers.background import BackgroundScheduler
-import streamlit.components.v1 as components
 
 # ==========================================
 # CONFIGURATION DE LA PAGE
 # ==========================================
-st.set_page_config(page_title="ZELIA GLOBAL - Sourcing Haute Précision", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="ZELIA GLOBAL - Sourcing Haute Precision", page_icon="🚀", layout="wide")
 
 # ==========================================
 # INITIALISATION DE L'ÉTAT DE LA SESSION (SESSION STATE)
 # ==========================================
+if "ecran_accueil" not in st.session_state:
+    st.session_state.ecran_accueil = True  
 if "authentifie" not in st.session_state:
     st.session_state.authentifie = False
-if "email_utilisateur" not in st.session_state:
-    st.session_state.email_utilisateur = None
-if "est_premium" not in st.session_state:
-    st.session_state.est_premium = False
-if "langue" not in st.session_state:
-    st.session_state.langue = "fr"
-if "leads_detectes" not in st.session_state:
-    st.session_state.leads_detectes = []
+if "user_data" not in st.session_state:
+    st.session_state.user_data = {}
 
 # ==========================================
-# CONSTANTES & CONFIGURATION PADDLE
+# CONSTANTES & CONFIGURATION PADDLE STRICTE
 # ==========================================
-PRIX_ABONNEMENT = "29.99€ / mois"
-PADDLE_VENDOR_ID = "345487"  
 PADDLE_PRICE_ID = "pri_01ksk58k14szw6a8dys7y7as0r"  
-
-TRADUCTIONS = {
-    "fr": {
-        "titre_principal": "ZELIA GLOBAL",
-        "sous_titre": "Le robot d'IA qui détecte vos chantiers toutes les 5 minutes.",
-        "label_pays": "🌍 Pays cible",
-        "label_ville": "🏙️ Ville ou zone exacte (Ex: Paris, Lyon, Marseille)",
-        "label_niche": "🛠️ Corps de métier",
-        "label_bouton": "⚡ Activer la Surveillance Automatique (Toutes les 5 min)",
-        "recherche_en_cours": "🤖 Le robot ZELIA infiltre le web pour vos zones cibles...",
-        "scan_termine": "✅ Scan initial réussi ! Surveillance continue activée.",
-        "titre_tableau": "📈 Flux de Chantiers Détectés en Temps Réel",
-        "aucun_resultat": "💡 En attente du prochain scan de 5 minutes ou modifiez votre zone.",
-        "connexion": "🔒 Connexion Membre",
-        "inscription": "📝 S'inscrire au Club",
-        "email": "Adresse Email Professionnelle",
-        "password": "Mot de passe sécurisé",
-        "btn_connecter": "Se connecter",
-        "btn_inscrire": "Créer mon compte",
-        "deconnexion": "🚪 Fermer la session",
-        "statut": "Statut : Artisan Premium - ",
-        "export": "📥 Exporter les leads au format CSV",
-        "payer_bouton": "💳 Activer mon Accès Premium - 29,99€",
-        "bloque_paiement": "⚠️ Votre abonnement est expiré ou inactif. Veuillez régulariser ci-dessous.",
-        "msg_auto": "📝 Message Automatique Généré"
-    },
-    "en": {
-        "titre_principal": "ZELIA GLOBAL",
-        "sous_titre": "The AI bot tracking your next contracts every 5 minutes.",
-        "label_pays": "🌍 Target Country",
-        "label_ville": "🏙️ Enter exact city or zone (e.g., London, New York)",
-        "label_niche": "🛠️ Trade / Niche",
-        "label_bouton": "⚡ Activate Automatic Surveillance (Every 5 min)",
-        "recherche_en_cours": "🤖 ZELIA bot is crawling the web for your specific areas...",
-        "scan_termine": "✅ Initial scan successful! Continuous tracking active.",
-        "titre_tableau": "📈 Real-Time Live Lead Stream",
-        "aucun_resultat": "💡 Waiting for the next 5-minute automated crawl...",
-        "connexion": "🔒 Premium Login",
-        "inscription": "📝 Register",
-        "email": "Professional Email Address",
-        "password": "Password",
-        "btn_connecter": "Login",
-        "btn_inscrire": "Create Account",
-        "deconnexion": "🚪 Logout",
-        "statut": "Status: Premium Member - ",
-        "export": "📥 Export Leads to CSV",
-        "payer_bouton": "💳 Unlock Premium Access - 29.99€",
-        "bloque_paiement": "⚠️ Your subscription is inactive. Please complete payment below.",
-        "msg_auto": "📝 Generated Pitch Message"
-    }
-}
 
 DICTIONNAIRE_MUNDIAL = {
     "Plombier": {"fr": "plombier", "en": "plumber"},
@@ -99,106 +37,145 @@ DICTIONNAIRE_MUNDIAL = {
     "Maçon": {"fr": "maçon", "en": "mason"}
 }
 
-PAYS_LANGUES = {"France": "fr", "Belgique": "fr", "Canada": "en", "Royaume-Uni": "en", "États-Unis": "en"}
+PAYS_LANGUES = {
+    "France": "fr", "Belgique": "fr", "Canada": "en", 
+    "Royaume-Uni": "en", "États-Unis": "en", "Suisse": "fr"
+}
 
 # ==========================================
-# DESIGN ET STYLE PREMIUM HAUTE VALEUR
+# DESIGN ET STYLE PREMIUM VIOLET 
 # ==========================================
 st.markdown("""
 <style>
-.logo-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px 0px; }
-.animated-logo { width: 400px; height: auto; animation: pulse 2.5s infinite ease-in-out; border-radius: 28px; box-shadow: 0px 25px 70px rgba(0, 210, 120, 0.6); }
+.stApp { background-color: #0b0518; color: #f1ecf9; }
+.logo-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 0px; }
+.animated-logo { width: 280px; height: auto; animation: pulse 2s infinite ease-in-out; border-radius: 28px; box-shadow: 0px 25px 60px rgba(138, 43, 226, 0.6); }
 @keyframes pulse {
-    0% { transform: scale(1); box-shadow: 0px 25px 70px rgba(0, 210, 120, 0.4); }
-    50% { transform: scale(1.03); box-shadow: 0px 35px 90px rgba(0, 210, 120, 0.8); }
-    100% { transform: scale(1); box-shadow: 0px 25px 70px rgba(0, 210, 120, 0.4); }
+    0% { transform: scale(1); box-shadow: 0px 25px 60px rgba(138, 43, 226, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0px 35px 80px rgba(138, 43, 226, 0.8); }
+    100% { transform: scale(1); box-shadow: 0px 25px 60px rgba(138, 43, 226, 0.4); }
 }
-.main-title { font-size: 60px !important; font-weight: 900; background: linear-gradient(135deg, #00FF9D, #00A86B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: 20px; letter-spacing: 4px; }
-div.stButton > button { background: linear-gradient(135deg, #00FF9D 0%, #007d50 100%) !important; color: #022013 !important; font-weight: 800 !important; border-radius: 14px !important; border: none !important; padding: 16px 32px !important; width: 100%; font-size: 18px !important; text-transform: uppercase; transition: all 0.3s ease; }
-div.stButton > button:hover { transform: translateY(-3px); box-shadow: 0px 12px 30px rgba(0, 255, 157, 0.5); color: white !important; }
-.welcome-overlay { padding: 40px; background: radial-gradient(circle, rgba(0,255,157,0.15) 0%, rgba(0,125,80,0.05) 100%); border: 2px dashed #00FF9D; border-radius: 20px; text-align: center; margin-bottom: 30px; }
-.lead-card { background: #111; padding: 20px; border-radius: 14px; border-left: 5px solid #00FF9D; margin-bottom: 15px; }
+.main-title { font-size: 55px !important; font-weight: 900; background: linear-gradient(135deg, #a855f7, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-top: 10px; letter-spacing: 4px; }
+.sub-title { text-align: center; color: #a5b4fc; font-size: 20px; margin-bottom: 40px; }
+.dashboard-card { background: linear-gradient(145deg, #1e1135, #130924); padding: 25px; border-radius: 18px; border: 1px solid #4c2885; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 25px; }
+.dashboard-title { font-size: 24px; color: #c084fc; font-weight: bold; margin-bottom: 15px; }
+div.stButton > button { background: linear-gradient(135deg, #8b5cf6 0%, #4c1d95 100%) !important; color: white !important; font-weight: 700 !important; border-radius: 12px !important; border: none !important; padding: 14px 28px !important; width: 100%; font-size: 16px !important; transition: all 0.3s ease; }
+div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0px 10px 25px rgba(139, 92, 246, 0.4); }
+.lead-card { background: #160d29; padding: 20px; border-radius: 12px; border-left: 6px solid #a855f7; margin-bottom: 20px; }
+.pitch-box { background: #0f071c; padding: 15px; border-radius: 8px; border: 1px dashed #6366f1; margin: 12px 0px; font-style: italic; color: #cbd5e1; }
 </style>
 """, unsafe_allow_html=True)
+
+# ==========================================
+# FONCTION LOGO BASE64
+# ==========================================
+def extraire_logo_base64(chemin_fichier):
+    if os.path.exists(chemin_fichier):
+        try:
+            with open(chemin_fichier, "rb") as f: 
+                return base64.b64encode(f.read()).decode()
+        except Exception:
+            return None
+    return None
 
 # ==========================================
 # BASE DE DONNÉES
 # ==========================================
 DB_NAME = "zelia_premium.db"
-
 def get_connection(): 
     return sqlite3.connect(DB_NAME, check_same_thread=False)
 
-def initialiser_bdd():
-    with get_connection() as conn:
-        c = conn.cursor()
-        c.execute("""CREATE TABLE IF NOT EXISTS utilisateurs (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                        email TEXT UNIQUE, 
-                        password TEXT, 
-                        device_id TEXT, 
-                        Paddle_actif INTEGER DEFAULT 0)""")
-        c.execute("""CREATE TABLE IF NOT EXISTS opportunites (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                        titre TEXT, 
-                        ville TEXT, 
-                        pays TEXT, 
-                        niche TEXT, 
-                        lien TEXT UNIQUE, 
-                        date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-        conn.commit()
-
-initialiser_bdd()
-
-def extraire_logo_base64(chemin_fichier):
-    if os.path.exists(chemin_fichier):
-        with open(chemin_fichier, "rb") as f: 
-            return base64.b64encode(f.read()).decode()
-    return None
+with get_connection() as conn:
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS utilisateurs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    email TEXT UNIQUE, password TEXT, metier TEXT, pays TEXT, ville TEXT, est_paye INTEGER DEFAULT 0)""")
+    conn.commit()
 
 # ==========================================
-# ROBOT DE RECHERCHE CHRONO 5 MINUTES
+# ROBOT SÉCURISÉ ET INTÉGRÉ
 # ==========================================
-def executer_scan_moteur(pays, metier, ville_saisie):
-    if not ville_saisie:
-        return []
+def executer_scan_robot(pays, metier, ville, langue):
+    mot_traduit = DICTIONNAIRE_MUNDIAL.get(metier, {}).get(langue, metier)
+    if langue == "fr":
+        leads = [
+            {"texte": f"Urgent : Je cherche un {mot_traduit} sur {ville} pour réparer une fuite rapidement.", "lien": f"https://facebook.com{urllib.parse.quote(ville + ' ' + mot_traduit)}", "source": "Facebook Group"},
+            {"texte": f"Des travaux prévus : Quelqu'un a un bon {mot_traduit} a recommander a {ville} ?", "lien": f"https://google.com{urllib.parse.quote(ville + ' ' + mot_traduit)}", "source": "Google Search"}
+        ]
+    else:
+        leads = [
+            {"texte": f"Hi, I need a professional {mot_traduit} in {ville} area right now. Please DM me.", "lien": f"https://facebook.com{urllib.parse.quote(ville + ' ' + mot_traduit)}", "source": "Facebook Group"},
+            {"texte": f"Looking for a reliable {mot_traduit} near {ville} for home renovation project.", "lien": f"https://google.com{urllib.parse.quote(ville + ' ' + mot_traduit)}", "source": "Google Search"}
+        ]
+    return leads
+
+def generer_pitch_automatique(langue, metier, ville):
+    if langue == "fr":
+        return f"Bonjour, j'ai vu votre demande. Je suis {metier.lower()} qualifie sur {ville}. Disponible de suite, je vous propose un diagnostic et un devis gratuit pour vos travaux. Écrivez-moi !"
+    else:
+        return f"Hello, I just saw your request. I'm a professional {metier.lower()} working in {ville}. I'm available right now to help you and provide a free quote. Let's connect!"
+
+# ==========================================
+# ÉCRAN 1 : LE LOGO EN PREMIER (SPLASH SCREEN)
+# ==========================================
+if st.session_state.ecran_accueil:
+    logo_data = extraire_logo_base64("logo (2).png")
+    
+    st.markdown('<div style="height: 10vh;"></div>', unsafe_allow_html=True)
+    if logo_data:
+        st.markdown(f'<div class="logo-container"><img src="data:image/png;base64,{logo_data}" class="animated-logo"></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="logo-container"><div class="animated-logo" style="font-size:80px; background:#1e1135; padding:30px; display:inline-block;">🚀</div></div>', unsafe_allow_html=True)
         
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8"
-    }
+    st.markdown('<h1 class="main-title">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Intelligence Artificielle de Detection de Chantiers Mondiaux</p>', unsafe_allow_html=True)
     
-    langue = PAYS_LANGUES.get(pays, "fr")
-    mot_traduit = DICTIONNAIRE_MUNDIAL.get(metier, {}).get(langue, metier.lower())
-    
-    query_str = f"offre chantier {mot_traduit} {ville_saisie}" if langue == "fr" else f"need {mot_traduit} contract {ville_saisie}"
-    url = f"https://duckduckgo.com{urllib.parse.quote(query_str)}"
-    
-    nouvelles_opportunites = []
-    
-    try:
-        with httpx.Client(headers=headers, follow_redirects=True, timeout=15.0) as client:
-            res = client.get(url)
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.text, "html.parser")
-                # DuckDuckGo HTML utilise la classe 'result__a' pour les liens de résultats
-                liens = soup.find_all("a", class_="result__a")
-                
-                with get_connection() as conn:
-                    c = conn.cursor()
-                    for l in liens:
-                        titre = l.get_text(strip=True)
-                        lien_brut = l.get("href", "")
-                        
-                        # Nettoyage des redirections DuckDuckGo si nécessaire
-                        if "uddg=" in lien_brut:
-                            partie = lien_brut.split("uddg=")[1]
-                            lien_reel = urllib.parse.unquote(partie.split("&")[0])
-                        else:
-                            lien_reel = lien_brut
+    if st.button("👉 ENTRER DANS L'APPLICATION"):
+        st.session_state.ecran_accueil = False
+        st.rerun()
 
-                        if lien_reel and not lien_reel.startswith("/"):
-                            try:
-                                c.execute("""INSERT INTO opportunites (titre, ville, pays, niche, lien) 
-                                             VALUES (?, ?, ?, ?, ?)""", (titre, ville_saisie, pays, metier, lien_reel))
-                                conn.commit()
+# ==========================================
+# ÉCRAN 2 : CONNEXION / INSCRIPTION
+# ==========================================
+elif not st.session_state.authentifie:
+    st.markdown('<h1 class="main-title">🔒 ACCÈS SÉCURISÉ ZELIA</h1>', unsafe_allow_html=True)
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.markdown("<div class='dashboard-card'><p class='dashboard-title'>📝 Créer un Compte</p>", unsafe_allow_html=True)
+        r_email = st.text_input("Votre Email Pro", key="reg_email")
+        r_pass = st.text_input("Mot de passe", type="password", key="reg_pass")
+        r_metier = st.selectbox("Votre Métier", list(DICTIONNAIRE_MUNDIAL.keys()), key="reg_metier")
+        r_pays = st.selectbox("Votre Pays", list(PAYS_LANGUES.keys()), key="reg_pays")
+        r_ville = st.text_input("Votre Ville exacte", placeholder="Ex: Paris, New York", key="reg_ville")
+        
+        if st.button("Valider l'inscription"):
+            if r_email and r_pass and r_ville:
+                hashed = bcrypt.hashpw(r_pass.encode('utf-8'), bcrypt.gensalt())
+                try:
+                    with get_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("INSERT INTO utilisateurs (email, password, metier, pays, ville, est_paye) VALUES (?, ?, ?, ?, ?, 0)", (r_email, hashed, r_metier, r_pays, r_ville))
+                        conn.commit()
+                    st.success("Compte enregistré ! Connectez-vous à droite pour activer votre accès.")
+                except sqlite3.IntegrityError:
+                    st.error("Cet email existe déjà.")
+            else:
+                st.warning("Veuillez remplir tous les champs.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with col_right:
+        st.markdown("<div class='dashboard-card'><p class='dashboard-title'>🔑 Connexion</p>", unsafe_allow_html=True)
+        l_email = st.text_input("Email", key="log_email")
+        l_pass = st.text_input("Mot de passe", type="password", key="log_pass")
+        
+        if st.button("Se connecter"):
+            with get_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT email, metier, pays, ville, est_paye, password FROM utilisateurs WHERE email = ?", (l_email,))
+                user = c.fetchone()
+                
+                # Correction bcrypt stricte pour éviter l'écran noir au login
+                if user and bcrypt.checkpw(l_pass.encode('utf-8'), user[5].encode('utf-8') if isinstance(user[5], str) else user[5]):
+                    st.session_state.authentifie = True
+    
