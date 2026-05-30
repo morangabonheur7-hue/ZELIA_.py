@@ -18,6 +18,20 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="ZELIA GLOBAL - Sourcing Haute Précision", page_icon="🚀", layout="wide")
 
 # ==========================================
+# INITIALISATION DE L'ÉTAT DE LA SESSION (SESSION STATE)
+# ==========================================
+if "authentifie" not in st.session_state:
+    st.session_state.authentifie = False
+if "email_utilisateur" not in st.session_state:
+    st.session_state.email_utilisateur = None
+if "est_premium" not in st.session_state:
+    st.session_state.est_premium = False
+if "langue" not in st.session_state:
+    st.session_state.langue = "fr"
+if "leads_detectes" not in st.session_state:
+    st.session_state.leads_detectes = []
+
+# ==========================================
 # CONSTANTES & CONFIGURATION PADDLE
 # ==========================================
 PRIX_ABONNEMENT = "29.99€ / mois"
@@ -111,21 +125,35 @@ div.stButton > button:hover { transform: translateY(-3px); box-shadow: 0px 12px 
 # BASE DE DONNÉES
 # ==========================================
 DB_NAME = "zelia_premium.db"
+
 def get_connection(): 
     return sqlite3.connect(DB_NAME, check_same_thread=False)
 
 def initialiser_bdd():
-    conn = get_connection(); c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS utilisateurs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, device_id TEXT, Paddle_actif INTEGER DEFAULT 0)""")
-    c.execute("""CREATE TABLE IF NOT EXISTS opportunites (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, titre TEXT, ville TEXT, pays TEXT, niche TEXT, lien TEXT UNIQUE, date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-    conn.commit(); conn.close()
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute("""CREATE TABLE IF NOT EXISTS utilisateurs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        email TEXT UNIQUE, 
+                        password TEXT, 
+                        device_id TEXT, 
+                        Paddle_actif INTEGER DEFAULT 0)""")
+        c.execute("""CREATE TABLE IF NOT EXISTS opportunites (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        titre TEXT, 
+                        ville TEXT, 
+                        pays TEXT, 
+                        niche TEXT, 
+                        lien TEXT UNIQUE, 
+                        date_trouvee TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+        conn.commit()
+
 initialiser_bdd()
 
 def extraire_logo_base64(chemin_fichier):
     if os.path.exists(chemin_fichier):
-        with open(chemin_fichier, "rb") as f: return base64.b64encode(f.read()).decode()
+        with open(chemin_fichier, "rb") as f: 
+            return base64.b64encode(f.read()).decode()
     return None
 
 # ==========================================
@@ -133,7 +161,7 @@ def extraire_logo_base64(chemin_fichier):
 # ==========================================
 def executer_scan_moteur(pays, metier, ville_saisie):
     if not ville_saisie:
-        return
+        return []
         
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -143,55 +171,34 @@ def executer_scan_moteur(pays, metier, ville_saisie):
     langue = PAYS_LANGUES.get(pays, "fr")
     mot_traduit = DICTIONNAIRE_MUNDIAL.get(metier, {}).get(langue, metier.lower())
     
-    conn = get_connection(); c = conn.cursor()
-    with httpx.Client(headers=headers, follow_redirects=True, timeout=12.0) as client:
-        query_str = f"cherche {mot_traduit} {ville_saisie}" if langue == "fr" else f"looking for {mot_traduit} {ville_saisie}"
-        url = f"https://duckduckgo.com{urllib.parse.quote(query_str)}"
-        
-        try:
+    query_str = f"offre chantier {mot_traduit} {ville_saisie}" if langue == "fr" else f"need {mot_traduit} contract {ville_saisie}"
+    url = f"https://duckduckgo.com{urllib.parse.quote(query_str)}"
+    
+    nouvelles_opportunites = []
+    
+    try:
+        with httpx.Client(headers=headers, follow_redirects=True, timeout=15.0) as client:
             res = client.get(url)
             if res.status_code == 200:
                 soup = BeautifulSoup(res.text, "html.parser")
-                elements = soup.find_all("div", class_="result")
+                # DuckDuckGo HTML utilise la classe 'result__a' pour les liens de résultats
+                liens = soup.find_all("a", class_="result__a")
                 
-                for body in elements[:6]:
-                    snippet_el = body.find("a", class_="result__snippet")
-                    lien_el = body.find("a", class_="result__url")
-                    
-                    if snippet_el and lien_el:
-                        txt = snippet_el.get_text(strip=True)
-                        lnk = lien_el.get("href", "")
+                with get_connection() as conn:
+                    c = conn.cursor()
+                    for l in liens:
+                        titre = l.get_text(strip=True)
+                        lien_brut = l.get("href", "")
                         
-                        try:
-                            c.execute("""INSERT INTO opportunites (titre, ville, pays, niche, lien) 
-                                         VALUES (?, ?, ?, ?, ?)""", (txt[:140] + "...", ville_saisie, pays, metier, lnk))
-                        except sqlite3.IntegrityError:
-                            pass
-                conn.commit()
-        except Exception:
-            pass
-    conn.close()
+                        # Nettoyage des redirections DuckDuckGo si nécessaire
+                        if "uddg=" in lien_brut:
+                            partie = lien_brut.split("uddg=")[1]
+                            lien_reel = urllib.parse.unquote(partie.split("&")[0])
+                        else:
+                            lien_reel = lien_brut
 
-if "scheduler" not in st.session_state:
-    st.session_state.scheduler = BackgroundScheduler()
-    st.session_state.scheduler.start()
-
-# ==========================================
-# ENREGISTREMENT ET SESSIONS
-# ==========================================
-if "device_fingerprint" not in st.session_state: st.session_state.device_fingerprint = base64.b64encode(os.urandom(16)).decode()
-if "connecte" not in st.session_state: st.session_state.connecte = False
-if "user_email" not in st.session_state: st.session_state.user_email = ""
-if "date_connexion" not in st.session_state: st.session_state.date_connexion = 0.0
-
-def inscrire_utilisateur(email, password, dev_id):
-    conn = get_connection(); c = conn.cursor()
-    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-    try:
-        c.execute("INSERT INTO utilisateurs (email, password, device_id, Paddle_actif) VALUES (?, ?, ?, 0)", (email, hashed, dev_id))
-        conn.commit(); return "ok"
-    except sqlite3.IntegrityError: return "exists"
-    finally: conn.close()
-
-def verifier_utilisateur(email, password):
-    conn = get_connection(); c = conn.cursor()
+                        if lien_reel and not lien_reel.startswith("/"):
+                            try:
+                                c.execute("""INSERT INTO opportunites (titre, ville, pays, niche, lien) 
+                                             VALUES (?, ?, ?, ?, ?)""", (titre, ville_saisie, pays, metier, lien_reel))
+                                conn.commit()
