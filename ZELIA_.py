@@ -141,46 +141,121 @@ if not any(t.name == "ZeliaRobotThread" for t in threading.enumerate()):
     threading.Thread(target=execution_moteur_robot, name="ZeliaRobotThread", daemon=True).start()
 
 # ==========================================
-# ÉCRAN 1 : SPLASH SCREEN ANIMÉ
+# ÉCRAN 1 : SPLASH SCREEN GÉANT ET CENTRÉ (10 SECONDES)
 # ==========================================
 if not st.session_state.splash_done:
+    # Injection d'un style CSS temporaire pour masquer l'interface Streamlit et centrer le logo en plein écran
+    st.markdown("""
+    <style>
+        /* Masquer les barres de navigation par défaut de Streamlit pendant l'animation */
+        [data-testid="stHeader"], footer { display: none !important; }
+        .stApp { background-color: #0b0518 !important; }
+        
+        .full-screen-splash {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #0b0518;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 99999; text-align: center;
+        }
+        .animated-logo-giant {
+            width: 450px; /* Taille augmentée pour un effet gros écran */
+            height: auto; 
+            border-radius: 28px;
+            animation: pulse-giant 2.5s infinite ease-in-out;
+            box-shadow: 0px 30px 80px rgba(138, 43, 226, 0.6);
+        }
+        @keyframes pulse-giant {
+            0% { transform: scale(1); box-shadow: 0px 30px 80px rgba(138, 43, 226, 0.5); }
+            50% { transform: scale(1.08); box-shadow: 0px 45px 100px rgba(138, 43, 226, 0.9); }
+            100% { transform: scale(1); box-shadow: 0px 30px 80px rgba(138, 43, 226, 0.5); }
+        }
+        .splash-text {
+            margin-top: 35px;
+            font-size: 22px;
+            color: #a5b4fc !important;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
     container = st.empty()
     with container.container():
-        st.markdown('<div class="splash-container">', unsafe_allow_html=True)
-        st.markdown('<h1>🚀 ZELIA GLOBAL</h1>', unsafe_allow_html=True)
-        st.markdown('<p>Initialisation des systèmes en cours...</p>', unsafe_allow_html=True)
+        st.markdown('<div class="full-screen-splash">', unsafe_allow_html=True)
+        if os.path.exists("mon logo (2).png"):
+            with open("mon logo (2).png", "rb") as f: 
+                encoded = base64.b64encode(f.read()).decode()
+            st.markdown(f'<img src="data:image/png;base64,{encoded}" class="animated-logo-giant">', unsafe_allow_html=True)
+        else:
+            # Si le fichier image est introuvable pendant le test, affiche un texte géant animé
+            st.markdown('<h1 style="font-size:80px; font-weight:900; background: linear-gradient(135deg, #a855f7, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: pulse-giant 2.5s infinite ease-in-out;">ZELIA GLOBAL</h1>', unsafe_allow_html=True)
+        st.markdown('<p class="splash-text">Initialisation des protocoles de sourcing...</p>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-        time.sleep(3)
-        st.session_state.splash_done = True
-        st.rerun()
-
-# ==========================================
-# INTERFACE PRINCIPALE (CONNEXION / INSCRIPTION)
-# ==========================================
-langue_choisie = st.sidebar.selectbox("🌐 Langue / Language", ["fr", "en"])
-t = TEXTES[langue_choisie]
-
-if not st.session_state.authentifie:
-    onglet1, onglet2 = st.tabs([t["titre_ins"], "🔑 Connexion"])
     
-    with onglet1:
-        st.markdown(f"### {t['titre_ins']}")
-        nom = st.text_input(t["nom"], key="reg_nom")
-        metier = st.text_input(t["metier"], key="reg_metier")
-        pays = st.selectbox(t["pays"], list(PAYS_LANGUES.keys()), key="reg_pays")
-        ville = st.text_input(t["ville"], key="reg_ville")
+    time.sleep(10) # Pause stricte de 10 secondes sur le logo
+    st.session_state.splash_done = True
+    st.rerun()
+
+# ==========================================
+# ÉCRAN 2 : ACCUEIL & INSCRIPTION AVEC BOUTON REDIRECTION DIRECTE
+# ==========================================
+elif not st.session_state.authentifie:
+    st.write("# ZELIA GLOBAL")
+    
+    # Sélecteur de pays pour changer la langue automatiquement
+    pays_temp = st.selectbox("🌍 Select country / Choisissez le pays", list(PAYS_LANGUES.keys()))
+    langue = PAYS_LANGUES.get(pays_temp, "fr")
+    txt = TEXTES[langue]
+    
+    st.subheader(txt["titre_ins"])
+    
+    # ÉTAPE 1 : Le gros bouton violet qui ouvre DIRECTEMENT votre page produit Paddle
+    st.markdown("### 🛠️ Étape 1 : Enregistrement obligatoire")
+    st.link_button(txt["payer"], PADDLE_CHECKOUT_URL)
+    
+    st.markdown("---")
+    st.markdown("### 📝 Étape 2 : Validation de votre accès")
+    
+    declencher_redirection = False
+    
+    with st.form("inscription_form"):
+        nom = st.text_input(txt["nom"])
+        metier = st.text_input(txt["metier"])
+        ville = st.text_input(txt["ville"])
         
-        st.markdown(f"[ {t['payer']} ]({PADDLE_CHECKOUT_URL})")
-        licence = st.text_input(t["licence_label"], type="password", key="reg_licence")
+        # La case en bas pour mettre la clé reçue par email et valider
+        cle_licence = st.text_input(txt["licence_label"], placeholder="Collez ici la clé reçue par email (ou 'TEST-ZELIA' pour essayer)")
         
-        if st.button(t["bouton_creer"]):
-            if verifier_licence_paddle(licence):
-                conn = sqlite3.connect(DB_NAME)
-                c = conn.cursor()
-                c.execute("SELECT id FROM artisans WHERE licence = ?", (licence,))
-                if c.fetchone():
-                    st.error(t["existe"])
-                else:
-                    c.execute("INSERT INTO artisans (nom, metier, pays, ville, licence) VALUES (?, ?, ?, ?, ?)", (nom, metier, pays, ville, licence))
-                    conn.commit()
-                    st.success(t["succes"])
+        if st.form_submit_button(txt["bouton_creer"]):
+            if nom and metier and ville and cle_licence:
+                if verifier_licence_paddle(cle_licence):
+                    
+                    # Nettoyage automatique des accents du métier pour éviter les bugs du robot
+                    metier_clean = metier.lower().strip().replace("é", "e").replace("è", "e").replace("ç", "c")
+                    ville_clean = ville.strip()
+                    
+                    with db_lock:
+                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                        c = conn.cursor()
+                        c.execute("SELECT id FROM artisans WHERE nom = ? AND metier = ? AND ville = ?", (nom, metier_clean, ville_clean))
+                        existe_deja = c.fetchone()
+                        
+                        if existe_deja: 
+                            st.error(txt["existe"])
+                        else:
+                            c.execute("INSERT INTO artisans (nom, metier, pays, ville, licence) VALUES (?, ?, ?, ?, ?)", (nom, metier_clean, pays_temp, ville_clean, cle_licence))
+                            conn.commit()
+                            st.session_state.user_id = c.lastrowid
+                            st.session_state.authentifie = True
+                            declencher_redirection = True
+                        conn.close()
+                else: 
+                    st.error(txt["erreur_paddle"])
+            else: 
+                st.warning("Veuillez remplir tous les champs / Please fill in all fields.")
+
+    if declencher_redirection:
+        st.rerun()
+           
