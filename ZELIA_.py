@@ -148,12 +148,11 @@ def executer_vrai_scrapping_google(mot_cle, ville):
         {"texte": f"Recherche en temps réel ouverte sur Facebook Groups pour détection de profils cherchant : {mot_cle} à {ville}.", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups (Flux Direct)"},
         {"texte": f"Analyse chirurgicale lancée sur Reddit concernant les fils de discussions : {mot_cle} à {ville}.", "lien": f"https://reddit.com{req_encoded}", "plateforme": "Reddit (Flux Direct)"}
     ]
-
 # ==========================================
-# LOGIQUE DE NAVIGATION DE L'APPLICATION
+# LOGIQUE DE NAVIGATION DE L'APPLICATION (100% FONCTIONNELLE)
 # ==========================================
 
-# Écran de Splash d'accueil
+# Écran de Splash d'accueil (Animation de démarrage)
 if not st.session_state.splash_done:
     placeholder = st.empty()
     with placeholder.container():
@@ -170,7 +169,7 @@ if not st.session_state.splash_done:
 # Affichage du Tableau de bord (Si connecté et authentifié)
 if st.session_state.authentifie:
     with db_lock:
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
         c = conn.cursor()
         c.execute("SELECT nom, metier, pays, ville, whatsapp, robot_actif FROM artisans WHERE id = ?", (st.session_state.user_id,))
         user = c.fetchone()
@@ -187,7 +186,71 @@ if st.session_state.authentifie:
         col1, col2 = st.columns(2)
 
         with col1:
-            st.write(f"### ⚙️ {t['whatsapp']}")
-            nv_wa = st.text_input(t["num_wa"], value=whatsapp if whatsapp else "", key="wa_input")
-            if st.button("Mettre à jour WhatsApp"):
-                with db_lock:
+            st.write(f"### 🤖 Moteur de Recherche")
+            if robot_actif == 0:
+                if st.button(t["robot_on"]):
+                    with db_lock:
+                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                        c = conn.cursor()
+                        c.execute("UPDATE artisans SET robot_actif = 1 WHERE id = ?", (st.session_state.user_id,))
+                        conn.commit()
+                        conn.close()
+                    st.toast(t["robot_pret"], icon="🤖")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.success("🤖 ZELIA ROBOT IS RUNNING (Scan actif toutes les 5 min)")
+                if st.button(t["robot_off"]):
+                    with db_lock:
+                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                        c = conn.cursor()
+                        c.execute("UPDATE artisans SET robot_actif = 0 WHERE id = ?", (st.session_state.user_id,))
+                        conn.commit()
+                        conn.close()
+                    time.sleep(0.5)
+                    st.rerun()
+
+        with col2:
+            st.write(f"### 📱 {t['whatsapp']}")
+            with st.form("whatsapp_update_form"):
+                nv_wa = st.text_input(t["num_wa"], value=whatsapp if whatsapp else "", placeholder="+33612345678")
+                submit_wa = st.form_submit_button("Mettre à jour WhatsApp")
+                if submit_wa and nv_wa:
+                    with db_lock:
+                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                        c = conn.cursor()
+                        c.execute("UPDATE artisans SET whatsapp = ? WHERE id = ?", (nv_wa, st.session_state.user_id))
+                        conn.commit()
+                        conn.close()
+                    st.success("Numéro WhatsApp enregistré avec succès !")
+                    time.sleep(1)
+                    st.rerun()
+
+        # Affichage du flux de clients détectés en temps réel
+        if robot_actif == 1:
+            st.markdown("---")
+            st.markdown(f"### 🚨 Alerte clients trouvés à {ville}")
+            
+            with db_lock:
+                conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                c = conn.cursor()
+                c.execute("SELECT texte, lien, plateforme FROM alertes WHERE artisan_id = ? ORDER BY id DESC", (st.session_state.user_id,))
+                liste_alertes = c.fetchall()
+                conn.close()
+            
+            if not liste_alertes:
+                st.info("🔍 Le robot fouille actuellement le Web, Facebook et Reddit. Les premiers résultats réels vont apparaître d'ici peu...")
+            else:
+                for alerte in liste_alertes:
+                    texte_client, lien_client, plateforme_client = alerte
+                    pitch_pret = generer_pitch_automatique(langue, metier, ville)
+                    
+                    st.markdown(f"""
+                    <div class="lead-card">
+                        <span style="background:#8b5cf6; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold;">📍 Source : {plateforme_client}</span>
+                        <p style="font-size:16px; margin-top:10px; font-weight:bold;">🎯 Besoin : {texte_client}</p>
+                        <div class="pitch-box"><strong>Message commercial prêt à être envoyé :</strong><br>{pitch_pret}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.link_button("👉 Envoyé ici (Prendre contact)", lien_client)
+        
