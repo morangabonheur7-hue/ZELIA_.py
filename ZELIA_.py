@@ -8,94 +8,53 @@ import urllib.parse
 import threading
 
 # ==========================================
-# CONFIGURATION DE LA PAGE & DESIGN PREMIUM ULTRA-LUMINEUX
+# 1. CONFIGURATION STRICTE DE LA PAGE & STYLE CSS
 # ==========================================
 st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
 
 st.markdown("""
 <style>
-    /* Configuration globale du thème sombre violet premium */
+    /* Application globale */
     .stApp { background-color: #0b0518; color: #ffffff; }
     h1, h2, h3, p, label, .stMarkdown { color: #ffffff !important; }
     
-    /* Écran de Splash d'accueil en plein écran absolu */
+    /* Splash screen géant centré */
     .full-screen-splash { 
-        position: fixed; 
-        top: 0; left: 0; 
-        width: 100vw; height: 100vh; 
-        background-color: #0b0518; 
-        display: flex; flex-direction: column; 
-        align-items: center; justify-content: center; 
-        z-index: 99999; text-align: center; 
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+        background-color: #0b0518; display: flex; flex-direction: column; 
+        align-items: center; justify-content: center; z-index: 99999; text-align: center; 
     }
-    
-    /* Animation et design haute définition du logo géant */
     .animated-logo-giant { 
-        width: 450px; 
-        height: auto; 
-        border-radius: 28px; 
+        width: 450px; height: auto; border-radius: 28px; 
         animation: pulse-giant 2.5s infinite ease-in-out; 
         box-shadow: 0px 30px 90px rgba(138, 43, 226, 0.7); 
     }
-    
-    /* Effet d'aspiration lumineuse dynamique pour un rendu magnifique */
     @keyframes pulse-giant {
         0% { transform: scale(1); box-shadow: 0px 30px 90px rgba(138, 43, 226, 0.5); }
         50% { transform: scale(1.08); box-shadow: 0px 45px 120px rgba(138, 43, 226, 0.9); }
         100% { transform: scale(1); box-shadow: 0px 30px 90px rgba(138, 43, 226, 0.5); }
     }
+    .splash-text { margin-top: 40px; font-size: 22px; color: #a5b4fc !important; letter-spacing: 3px; font-weight: 300; text-transform: uppercase; }
     
-    /* Style du texte d'initialisation sous le logo */
-    .splash-text { 
-        margin-top: 40px; 
-        font-size: 22px; 
-        color: #a5b4fc !important; 
-        letter-spacing: 3px; 
-        font-weight: 300; 
-        text-transform: uppercase;
-        animation: pulse-giant 2.5s infinite ease-in-out;
-    }
-    
-    /* Boutons premium personnalisés avec dégradé royal */
+    /* Boutons premium */
     div.stButton > button { 
         background: linear-gradient(135deg, #8b5cf6 0%, #4c1d95 100%) !important; 
         color: white !important; font-weight: 700 !important; border-radius: 10px !important; 
         border: none !important; padding: 12px 24px !important; width: 100%; transition: all 0.3s ease; 
     }
-    div.stButton > button:hover { 
-        transform: translateY(-2px); 
-        box-shadow: 0px 8px 25px rgba(139, 92, 246, 0.5); 
-    }
+    div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0px 8px 25px rgba(139, 92, 246, 0.5); }
     
-    /* Design des fiches de résultats clients (Leads) */
-    .lead-card { 
-        background: #160d29; 
-        padding: 20px; 
-        border-radius: 12px; 
-        border-left: 6px solid #ef4444; 
-        margin-bottom: 20px; 
-        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
-    }
-    
-    /* Design de la boîte contenant le message commercial rédigé */
-    .pitch-box { 
-        background: #0f071c; 
-        padding: 15px; 
-        border-radius: 8px; 
-        border: 1px dashed #6366f1; 
-        margin: 12px 0px; 
-        font-style: italic; 
-        color: #cbd5e1; 
-    }
+    /* Cartes de leads */
+    .lead-card { background: #160d29; padding: 20px; border-radius: 12px; border-left: 6px solid #ef4444; margin-bottom: 20px; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3); }
+    .pitch-box { background: #0f071c; padding: 15px; border-radius: 8px; border: 1px dashed #6366f1; margin: 12px 0px; font-style: italic; color: #cbd5e1; }
 </style>
 """, unsafe_allow_html=True)
 
-# Verrou de sécurité thread-safe obligatoire pour SQLite sur Streamlit Cloud
+# Verrou de sécurité thread-safe pour SQLite sur Streamlit Cloud
 db_lock = threading.Lock()
 
-
 # ==========================================
-# INITIALISATION DES VARIABLES ET CONSTANTES
+# 2. INITIALISATION DE L'ÉTAT DE SESSION
 # ==========================================
 if "splash_done" not in st.session_state: st.session_state.splash_done = False
 if "authentifie" not in st.session_state: st.session_state.authentifie = False
@@ -158,190 +117,66 @@ def init_db():
 init_db()
 
 # ==========================================
-# FONCTIONS SÉCURITÉ PADDLE & PITCH AUTO (100% FIABLE)
+# 3. VERIFICATIONS & BACKEND (PADDLE / RECHERCHE)
 # ==========================================
 def verifier_licence_paddle(cle):
-    """
-    Vérifie de manière stricte et sécurisée la clé de licence 
-    auprès de l'API officielle de Paddle Billing.
-    """
-    if cle == "TEST-ZELIA": 
-        return True
-        
+    if cle == "TEST-ZELIA": return True
     if "PADDLE_API_KEY" in st.secrets:
-        # Correction de l'URL : Ajout de l'API et de la structure de endpoint correcte
-        url_officielle_paddle = f"https://paddle.com{cle}"
-        headers_securises = {
-            "Authorization": f"Bearer {st.secrets['PADDLE_API_KEY']}",
-            "Content-Type": "application/json"
-        }
         try:
-            r = requests.get(url_officielle_paddle, headers=headers_securises, timeout=10)
-            if r.status_code == 200:
-                donnees_licence = r.json()
-                if donnees_licence.get("data", {}).get("status") == "active": 
-                    return True
-        except Exception: 
-            pass
+            r = requests.get(f"https://paddle.com{cle}", headers={"Authorization": f"Bearer {st.secrets['PADDLE_API_KEY']}"}, timeout=10)
+            if r.status_code == 200 and r.json().get("data", {}).get("status") == "active": return True
+        except: pass
     return False
 
 def generer_pitch_automatique(langue, metier, ville):
-    """Génère instantanément un message commercial d'approche sans erreur de syntaxe."""
-    if langue == "fr": 
-        return f"Bonjour, j'ai vu votre demande. Je suis {metier.lower()} qualifié sur {ville}. Disponible immédiatement pour analyser votre besoin et vous faire un devis gratuit. Contactez-moi !"
+    if langue == "fr": return f"Bonjour, j'ai vu votre demande. Je suis {metier.lower()} qualifié sur {ville}. Disponible immédiatement pour analyser votre besoin et vous faire un devis gratuit. Contactez-moi !"
     return f"Hello, I just saw your post. I'm a professional {metier.lower()} working in {ville}. Available right now to assist you and provide a free quote. Let's connect!"
 
 def executer_vrai_scrapping_google(mot_cle, ville):
-    """
-    Moteur d'aspiration Option A : Recherche sur le web mondial 
-    et extraction de flux récents pour Facebook et Reddit.
-    """
     requete_precise = f'"{mot_cle}" "{ville}"'
-    
-    # Si vos clés secrètes d'API Google Custom Search sont renseignées dans Streamlit Cloud
     if "GOOGLE_API_KEY" in st.secrets and "GOOGLE_CSE_ID" in st.secrets:
-        # Correction de l'URL globale invalide par le point d'accès de recherche chirurgicale
-        url_recherche_google = "https://googleapis.com"
-        params_recherche = {
-            "key": st.secrets["GOOGLE_API_KEY"], 
-            "cx": st.secrets["GOOGLE_CSE_ID"], 
-            "q": requete_precise, 
-            "num": 3, 
-            "sort": "date"
-        }
+        url = "https://googleapis.com"
+        params = {"key": st.secrets["GOOGLE_API_KEY"], "cx": st.secrets["GOOGLE_CSE_ID"], "q": requete_precise, "num": 3, "sort": "date"}
         try:
-            response = requests.get(url_recherche_google, params=params_recherche, timeout=10)
+            response = requests.get(url, params=params, timeout=10)
             if response.status_code == 200:
                 items = response.json().get("items", [])
                 vrais_leads = []
                 for item in items:
-                    vrais_leads.append({
-                        "texte": item.get("snippet", "Demande d'artisan détectée sur le web."), 
-                        "lien": item.get("link", "#"), 
-                        "plateforme": urllib.parse.urlparse(item.get("link")).netloc
-                    })
+                    vrais_leads.append({"texte": item.get("snippet", "Demande détectée"), "lien": item.get("link", "#"), "plateforme": urllib.parse.urlparse(item.get("link")).netloc})
                 return vrais_leads
-        except Exception: 
-            pass
+        except: pass
 
-    # Correction des URLs de redirection : Intégration des vrais paramètres de recherche Facebook et Reddit
     req_encoded = urllib.parse.quote(requete_precise)
     return [
-        {
-            "texte": f"Recherche en temps réel ouverte sur Facebook Groups pour détection de profils cherchant : {mot_cle} à {ville}.", 
-            "lien": f"https://facebook.com{req_encoded}", 
-            "plateforme": "Facebook Groups (Flux Direct)"
-        },
-        {
-            "texte": f"Analyse chirurgicale lancée sur Reddit concernant les fils de discussions : {mot_cle} à {ville}.", 
-            "lien": f"https://reddit.com{req_encoded}&sort=new", 
-            "plateforme": "Reddit (Flux Direct)"
-        }
-                             ]
-        
-# ==========================================
-# LOGIQUE DE NAVIGATION DE L'APPLICATION (100% FONCTIONNELLE)
-# ==========================================
+        {"texte": f"Recherche en temps réel ouverte sur Facebook Groups pour détection de profils cherchant : {mot_cle} à {ville}.", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups (Flux Direct)"},
+        {"texte": f"Analyse chirurgicale lancée sur Reddit concernant les fils de discussions : {mot_cle} à {ville}.", "lien": f"https://reddit.com{req_encoded}&sort=new", "plateforme": "Reddit (Flux Direct)"}
+    ]
 
-# Écran de Splash d'accueil (Animation de démarrage)
-if not st.session_state.splash_done:
-    placeholder = st.empty()
-    with placeholder.container():
-        st.markdown("""
-        <div class="full-screen-splash">
-            <h1 style='font-size: 50px; font-weight: 900; background: linear-gradient(to right, #ffffff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>ZELIA GLOBAL</h1>
-            <p class="splash-text">INITIALISATION DU ROBOT DE CHASSE DE LEADS MONDIAL...</p>
-        </div>
-        """, unsafe_allow_html=True)
-        time.sleep(2.5)
-    st.session_state.splash_done = True
-    st.rerun()
-
-# Affichage du Tableau de bord (Si connecté et authentifié)
-if st.session_state.authentifie:
-    with db_lock:
-        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-        c = conn.cursor()
-        c.execute("SELECT nom, metier, pays, ville, whatsapp, robot_actif FROM artisans WHERE id = ?", (st.session_state.user_id,))
-        user = c.fetchone()
-        conn.close()
-
-    if user:
-        nom, metier, pays, ville, whatsapp, robot_actif = user
-        langue = PAYS_LANGUES.get(pays, "fr")
-        t = TEXTES[langue]
-
-        st.title(f"🚀 ZELIA GLOBAL — Dashboard de {nom}")
-        st.subheader(f"🎯 Ciblage actif : {metier.capitalize()} à {ville} ({pays})")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.write(f"### 🤖 Moteur de Recherche")
-            if robot_actif == 0:
-                if st.button(t["robot_on"]):
-                    with db_lock:
-                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                        c = conn.cursor()
-                        c.execute("UPDATE artisans SET robot_actif = 1 WHERE id = ?", (st.session_state.user_id,))
-                        conn.commit()
-                        conn.close()
-                    st.toast(t["robot_pret"], icon="🤖")
-                    time.sleep(1)
-                    st.rerun()
-            else:
-                st.success("🤖 ZELIA ROBOT IS RUNNING (Scan actif toutes les 5 min)")
-                if st.button(t["robot_off"]):
-                    with db_lock:
-                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                        c = conn.cursor()
-                        c.execute("UPDATE artisans SET robot_actif = 0 WHERE id = ?", (st.session_state.user_id,))
-                        conn.commit()
-                        conn.close()
-                    time.sleep(0.5)
-                    st.rerun()
-
-        with col2:
-            st.write(f"### 📱 {t['whatsapp']}")
-            with st.form("whatsapp_update_form"):
-                nv_wa = st.text_input(t["num_wa"], value=whatsapp if whatsapp else "", placeholder="+33612345678")
-                submit_wa = st.form_submit_button("Mettre à jour WhatsApp")
-                if submit_wa and nv_wa:
-                    with db_lock:
-                        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                        c = conn.cursor()
-                        c.execute("UPDATE artisans SET whatsapp = ? WHERE id = ?", (nv_wa, st.session_state.user_id))
-                        conn.commit()
-                        conn.close()
-                    st.success("Numéro WhatsApp enregistré avec succès !")
-                    time.sleep(1)
-                    st.rerun()
-
-        # Affichage du flux de clients détectés en temps réel
-        if robot_actif == 1:
-            st.markdown("---")
-            st.markdown(f"### 🚨 Alerte clients trouvés à {ville}")
-            
+def execution_moteur_robot():
+    while True:
+        try:
             with db_lock:
                 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
                 c = conn.cursor()
-                c.execute("SELECT texte, lien, plateforme FROM alertes WHERE artisan_id = ? ORDER BY id DESC", (st.session_state.user_id,))
-                liste_alertes = c.fetchall()
+                c.execute("SELECT id, metier, pays, ville, whatsapp FROM artisans WHERE robot_actif = 1")
+                actifs = c.fetchall()
                 conn.close()
-            
-            if not liste_alertes:
-                st.info("🔍 Le robot fouille actuellement le Web, Facebook et Reddit. Les premiers résultats réels vont apparaître d'ici peu...")
-            else:
-                for alerte in liste_alertes:
-                    texte_client, lien_client, plateforme_client = alerte
-                    pitch_pret = generer_pitch_automatique(langue, metier, ville)
-                    
-                    st.markdown(f"""
-                    <div class="lead-card">
-                        <span style="background:#8b5cf6; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold;">📍 Source : {plateforme_client}</span>
-                        <p style="font-size:16px; margin-top:10px; font-weight:bold;">🎯 Besoin : {texte_client}</p>
-                        <div class="pitch-box"><strong>Message commercial prêt à être envoyé :</strong><br>{pitch_pret}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    st.link_button("👉 Envoyé ici (Prendre contact)", lien_client)
-        
+
+            for art in actifs:
+                art_id, metier, pays, ville, whatsapp = art
+                langue = PAYS_LANGUES.get(pays, "fr")
+                mots = DICTIONNAIRE_MOTS_CLES.get(metier.lower().strip(), {}).get(langue, [f"cherche {metier}"])
+                
+                for m in mots[:2]:
+                    vrais_leads = executer_vrai_scrapping_google(m, ville)
+                    for lead in vrais_leads:
+                        with db_lock:
+                            conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                            c = conn.cursor()
+                            c.execute("SELECT id FROM alertes WHERE artisan_id = ? AND lien = ?", (art_id, lead["lien"]))
+                            if not c.fetchone():
+                                c.execute("INSERT INTO alertes (artisan_id, texte, lien, plateforme) VALUES (?, ?, ?, ?)", (art_id, lead["texte"], lead["lien"], lead["plateforme"]))
+                                conn.commit()
+                            conn.close()
+
