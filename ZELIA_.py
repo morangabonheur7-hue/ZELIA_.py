@@ -157,7 +157,7 @@ def executer_vrai_scrapping_google(mot_cle, ville):
 if not st.session_state.splash_done:
     placeholder = st.empty()
     with placeholder.container():
-        st.markdown(f"""
+        st.markdown("""
         <div class="full-screen-splash">
             <h1 style='font-size: 50px; font-weight: 900; background: linear-gradient(to right, #ffffff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>ZELIA GLOBAL</h1>
             <p class="splash-text">INITIALISATION DU ROBOT DE CHASSE DE LEADS MONDIAL...</p>
@@ -184,7 +184,7 @@ if st.session_state.authentifie:
         st.title(f"🚀 ZELIA GLOBAL — Dashboard de {nom}")
         st.subheader(f"🎯 Ciblage actif : {metier.capitalize()} à {ville} ({pays})")
 
-        col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns(2)
 
         with col1:
             st.write(f"### ⚙️ {t['whatsapp']}")
