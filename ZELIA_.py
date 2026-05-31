@@ -29,6 +29,7 @@ st.markdown("""
     .pitch-box { background: #0f071c; padding: 15px; border-radius: 8px; border: 1px dashed #6366f1; margin: 12px 0px; font-style: italic; color: #cbd5e1; }
 </style>
 """, unsafe_allow_html=True)
+db_lock = threading.Lock()
 
 # ==========================================
 # INITIALISATION DES VARIABLES ET CONSTANTES
