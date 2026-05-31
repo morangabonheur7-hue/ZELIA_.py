@@ -146,37 +146,48 @@ def executer_vrai_scrapping_google(mot_cle, ville):
     req_encoded = urllib.parse.quote(requete_precise)
     return [
         {"texte": f"Recherche en temps réel ouverte sur Facebook Groups pour détection de profils cherchant : {mot_cle} à {ville}.", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups (Flux Direct)"},
-        {"texte": f"Analyse chirurgicale lancée sur Reddit concernant les fils de discussions : {mot_cle} à {ville}.", "lien": f"https://reddit.com{req_encoded}&sort=new", "plateforme": "Reddit Threads (Flux Direct)"}
+        {"texte": f"Analyse chirurgicale lancée sur Reddit concernant les fils de discussions : {mot_cle} à {ville}.", "lien": f"https://reddit.com{req_encoded}", "plateforme": "Reddit (Flux Direct)"}
     ]
 
 # ==========================================
-# MOTEUR DU ROBOT ZELIA (TÂCHE DE FOND CONTINU)
+# LOGIQUE DE NAVIGATION DE L'APPLICATION
 # ==========================================
-def execution_moteur_robot():
-    while True:
-        try:
-            with db_lock:
-                conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                c = conn.cursor()
-                c.execute("SELECT id, metier, pays, ville, whatsapp FROM artisans WHERE robot_actif = 1")
-                actifs = c.fetchall()
-                conn.close()
 
-            for art in actifs:
-                art_id, metier, pays, ville, whatsapp = art
-                langue = PAYS_LANGUES.get(pays, "fr")
-                mots = DICTIONNAIRE_MOTS_CLES.get(metier.lower().strip(), {}).get(langue, [f"cherche {metier}"])
-                
-                for m in mots[:2]:
-                    vrais_leads = executer_vrai_scrapping_google(m, ville)
-                    for lead in vrais_leads:
-                        with db_lock:
-                            conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                            c = conn.cursor()
-                            c.execute("SELECT id FROM alertes WHERE artisan_id = ? AND lien = ?", (art_id, lead["lien"]))
-                            if not c.fetchone():
-                                c.execute("INSERT INTO alertes (artisan_id, texte, lien, plateforme) VALUES (?, ?, ?, ?)", (art_id, lead["texte"], lead["lien"], lead["plateforme"]))
-                                conn.commit()
-                            conn.close()
-        except Exception as e:
-            print(f"Erreur Robot Système: {e}")
+# Écran de Splash d'accueil
+if not st.session_state.splash_done:
+    placeholder = st.empty()
+    with placeholder.container():
+        st.markdown(f"""
+        <div class="full-screen-splash">
+            <h1 style='font-size: 50px; font-weight: 900; background: linear-gradient(to right, #ffffff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>ZELIA GLOBAL</h1>
+            <p class="splash-text">INITIALISATION DU ROBOT DE CHASSE DE LEADS MONDIAL...</p>
+        </div>
+        """, unsafe_allow_html=True)
+        time.sleep(2.5)
+    st.session_state.splash_done = True
+    st.rerun()
+
+# Affichage du Tableau de bord (Si connecté et authentifié)
+if st.session_state.authentifie:
+    with db_lock:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute("SELECT nom, metier, pays, ville, whatsapp, robot_actif FROM artisans WHERE id = ?", (st.session_state.user_id,))
+        user = c.fetchone()
+        conn.close()
+
+    if user:
+        nom, metier, pays, ville, whatsapp, robot_actif = user
+        langue = PAYS_LANGUES.get(pays, "fr")
+        t = TEXTES[langue]
+
+        st.title(f"🚀 ZELIA GLOBAL — Dashboard de {nom}")
+        st.subheader(f"🎯 Ciblage actif : {metier.capitalize()} à {ville} ({pays})")
+
+        col1, col2 = st.columns([1, 2])
+
+        with col1:
+            st.write(f"### ⚙️ {t['whatsapp']}")
+            nv_wa = st.text_input(t["num_wa"], value=whatsapp if whatsapp else "", key="wa_input")
+            if st.button("Mettre à jour WhatsApp"):
+                with db_lock:
