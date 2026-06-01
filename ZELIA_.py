@@ -51,7 +51,6 @@ DICTIONNAIRE_MOTS_CLES = {
 # 3. SYSTÈME ANTI-TRICHE : VÉRIFICATION PADDLE API
 # ==========================================
 def verifier_statut_abonnement_paddle(email):
-    # Clé secrète d'accès universelle pour vos tests personnels
     if email.lower() == "test@zelia.com":
         return True, "trialing"
         
@@ -134,16 +133,15 @@ if not st.session_state.authentifie:
                     st.session_state.user_metier = metier
                     st.session_state.user_ville = ville_clean
                     st.session_state.authentifie = True
-                    st.success(f"✅ Accès autorisé ! Ouverture du tableau de bord...")
+                    st.success("✅ Accès autorisé ! Ouverture du tableau de bord...")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ Accès refusé : Aucun abonnement ou essai de 12 jours actif n'a été trouvé pour cet email chez Paddle.")
+                    st.error("❌ Accès refusé : Aucun abonnement trouvé chez Paddle.")
         else:
             st.error("⚠️ Veuillez renseigner votre Email et votre Ville pour vous connecter.")
 
 else:
-    # Tout ce bloc "else" est maintenant parfaitement aligné pour éviter l'IndentationError
     st.header(f"📊 Espace Privé de : {st.session_state.user_email}")
     st.write(f"Vérification Paddle : ✅ **Abonnement Sécurisé** | Artisan : **{st.session_state.user_metier.upper()}** | Zone : **{st.session_state.user_ville}**")
     
@@ -179,11 +177,14 @@ else:
         with st.spinner("Zelia scanne Google, Facebook et Reddit..."):
             mots_cles = DICTIONNAIRE_MOTS_CLES.get(st.session_state.user_metier, [st.session_state.user_metier])
             
-            for mot in mots_cles:
-                leads = executer_vrai_scrapping_google(mot, st.session_state.user_ville)
-                for lead in leads:
-                    st.markdown(f"""
-                    <div class="lead-card">
-                        <h4>📍 Client potentiel détecté ({lead['plateforme']})</h4>
-                        <p>{lead['texte']}</p>
-                        <div class="pitch-box">
+            # Utilisation du premier mot-clé principal pour une recherche claire sans doublons tactiles
+            mot_principal = mots_cles[0] if mots_cles else st.session_state.user_metier
+            leads = executer_vrai_scrapping_google(mot_principal, st.session_state.user_ville)
+            
+            for lead in leads:
+                st.markdown(f"""
+                <div class="lead-card">
+                    <h4>📍 Client potentiel détecté ({lead['plateforme']})</h4>
+                    <p>{lead['texte']}</p>
+                    <div class="pitch-box">
+                        <strong>Votre Pitch Commercial :</strong><br>{generer_pitch_automatique(st.session_state.user_metier, st.session_state.user_ville)}
