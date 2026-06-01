@@ -182,15 +182,47 @@ t = TEXTES[langue]
 
 if not st.session_state.authentifie:
     st.subheader(t["titre_ins"])
-    nom = st.text_input(t["nom"])
-    metier = st.selectbox(t["metier"], ["plombier", "electricien", "serrurier", "mecanicien"])
-    pays = st.selectbox(t["pays"], list(PAYS_LANGUES.keys()))
-    ville = st.text_input(t["ville"])
-    licence = st.text_input(t["licence_label"], value="TEST-ZELIA")
+    
+    # Utilisation d'un formulaire strict pour bloquer les rafraîchissements Android intempestifs
+    with st.form("formulaire_inscription"):
+        nom = st.text_input(t["nom"])
+        metier = st.selectbox(t["metier"], ["plombier", "electricien", "serrurier", "mecanicien"])
+        pays = st.selectbox(t["pays"], list(PAYS_LANGUES.keys()))
+        ville = st.text_input(t["ville"])
+        licence = st.text_input(t["licence_label"], value="TEST-ZELIA")
+        
+        # Le bouton de soumission du formulaire
+        bouton_soumettre = st.form_submit_button(t["bouton_creer"])
 
-    if st.button(t["bouton_creer"]):
-        if nom and ville and licence:
-            if verifier_licence_paddle(licence):
-                with db_lock:
-                    conn = sqlite3.connect(DB_NAME)
-                    c = conn.cursor()
+    if bouton_soumettre:
+        # Nettoyage des espaces cachés que le clavier Android ajoute parfois
+        nom_clean = nom.strip() if nom else ""
+        ville_clean = ville.strip() if ville else ""
+        licence_clean = licence.strip() if licence else ""
+        
+        if nom_clean and ville_clean and licence_clean:
+            if verifier_licence_paddle(licence_clean):
+                try:
+                    with db_lock:
+                        conn = sqlite3.connect(DB_NAME)
+                        c = conn.cursor()
+                        c.execute("INSERT INTO artisans (nom, metier, pays, ville, licence) VALUES (?, ?, ?, ?, ?)", 
+                                  (nom_clean, metier, pays, ville_clean, licence_clean))
+                        conn.commit()
+                        conn.close()
+                    
+                    # Sauvegarde des données dans la session avant le rechargement
+                    st.session_state.authentifie = True
+                    st.session_state.user_id = nom_clean
+                    st.session_state.user_metier = metier
+                    st.session_state.user_ville = ville_clean
+                    st.success(t["succes"])
+                    time.sleep(1) # Laisse le temps au message vert de s'afficher
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erreur de base de données : {e}")
+            else: 
+                st.error("❌ Clé de licence invalide. Vérifiez l'exactitude du code.")
+        else: 
+            st.error("⚠️ Attention : Vous devez obligatoirement remplir les champs 'Nom & Prénom' et 'Ville'.")
+    
