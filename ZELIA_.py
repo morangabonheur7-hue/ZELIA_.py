@@ -71,7 +71,6 @@ DB_NAME = "zelia_data.db"
 
 def init_db():
     with db_lock:
-        # L'argument timeout=20 empêche la base de données de se verrouiller
         conn = sqlite3.connect(DB_NAME, timeout=20, check_same_thread=False)
         c = conn.cursor()
         c.execute("""CREATE TABLE IF NOT EXISTS artisans (
@@ -215,3 +214,5 @@ else:
     with col2:
         if st.button(t["robot_off"]):
             with db_lock:
+                conn = sqlite3.connect(DB_NAME, timeout=20)
+                c = conn.cursor()
