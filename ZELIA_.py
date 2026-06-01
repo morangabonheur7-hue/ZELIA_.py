@@ -73,15 +73,15 @@ def verifier_statut_abonnement_paddle(email):
 # 4. LOGIQUE COMMERCIALE ET DE RECHERCHE
 # ==========================================
 def generer_pitch_automatique(metier, ville):
-    return f"Bonjour, j'ai vu votre demande. Je suis {metier.lower()} qualifié sur {ville}. Disponible immédiatement pour analyser votre besoin et vous faire un devis gratuit. Contactez-moi !"
+    return f"Bonjour, j'ai vu votre demande. Je suis {metier.lower()} qualifie sur {ville}. Disponible immediatement pour analyser votre besoin et vous faire un devis gratuit. Contactez-moi !"
 
 def executer_vrai_scrapping_google(mot_cle, ville):
     requete_precise = f'"{mot_cle}" "{ville}"'
     req_encoded = urllib.parse.quote(requete_precise)
     return [
-        {"texte": f"Besoin urgent : Recherche artisan {mot_cle} pour une intervention à {ville}.", "lien": f"https://google.com{req_encoded}", "plateforme": "Google Web Search"},
-        {"texte": f"Demande postée sur un groupe local : Quelqu'un connaît un bon {mot_cle} sur {ville} disponible ?", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups"},
-        {"texte": f"Fil de discussion communautaire : Recommandation pour un {mot_cle} sérieux à {ville}.", "lien": f"https://reddit.com{req_encoded}&sort=new", "plateforme": "Reddit"}
+        {"texte": f"Besoin urgent : Recherche artisan {mot_cle} pour une intervention a {ville}.", "lien": f"https://google.com{req_encoded}", "plateforme": "Google Web Search"},
+        {"texte": f"Demande postee sur un groupe local : Quelqu'un connait un bon {mot_cle} sur {ville} disponible ?", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups"},
+        {"texte": f"Fil de discussion communautaire : Recommandation pour un {mot_cle} serieux a {ville}.", "lien": f"https://reddit.com{req_encoded}&sort=new", "plateforme": "Reddit"}
     ]
 
 def simuler_robot_arriere_plan():
@@ -89,10 +89,10 @@ def simuler_robot_arriere_plan():
         metier = st.session_state.user_metier
         ville = st.session_state.user_ville
         pitch = generer_pitch_automatique(metier, ville)
-        message_alerte = f"Nouvelle opportunité de contrat détectée pour un {metier} à {ville}."
+        message_alerte = f"Nouvelle opportunite de contrat detectee pour un {metier} a {ville}."
         
         if st.session_state.whatsapp_num:
-            texte_wa = f"🚀 ZELIA ALERTE CLIENT !\n\n{message_alerte}\n\n👉 Message prêt : {pitch}"
+            texte_wa = f"🚀 ZELIA ALERTE CLIENT !\n\n{message_alerte}\n\n👉 Message pret : {pitch}"
             msg_encoded = urllib.parse.quote(texte_wa)
             lien_final = f"https://whatsapp.com{st.session_state.whatsapp_num}&text={msg_encoded}"
             plat = "WhatsApp Notification"
@@ -110,22 +110,22 @@ def simuler_robot_arriere_plan():
 st.title("🚀 ZELIA GLOBAL - Artisan Lead Locator")
 
 if not st.session_state.authentifie:
-    st.subheader("🔐 Connexion sécurisée par l'infrastructure Paddle")
-    st.markdown(f'🆕 Nouveau ? [👉 Cliquez ici pour activer vos 12 jours d\'essai gratuit sur Paddle]({PADDLE_CHECKOUT_URL})', unsafe_allow_html=True)
+    st.subheader("🔐 Connexion securisee par l'infrastructure Paddle")
+    st.markdown(f"🆕 Nouveau ? [👉 Cliquez ici pour activer vos 12 jours essai gratuit sur Paddle]({PADDLE_CHECKOUT_URL})", unsafe_allow_html=True)
     st.write("---")
     
     with st.form("formulaire_authentification_paddle"):
-        email = st.text_input("Saisissez l'adresse Email utilisée lors de votre paiement Paddle")
-        metier = st.selectbox("Votre Métier d'artisan", ["plombier", "electricien", "serrurier", "mecanicien"])
+        email = st.text_input("Saisissez l'adresse Email utilisee lors de votre paiement Paddle")
+        metier = st.selectbox("Votre Metier d'artisan", ["plombier", "electricien", "serrurier", "mecanicien"])
         ville = st.text_input("Votre Ville principale d'intervention")
-        bouton_connexion = st.form_submit_button("Vérifier mon abonnement et ouvrir mon tableau de bord 🔑")
+        bouton_connexion = st.form_submit_button("Verifier mon abonnement et ouvrir mon tableau de bord 🔑")
 
     if bouton_connexion:
         email_clean = email.strip().lower() if email else ""
         ville_clean = ville.strip() if ville else ""
         
         if email_clean and ville_clean:
-            with st.spinner("Vérification anti-triche auprès des serveurs Paddle..."):
+            with st.spinner("Verification anti-triche apres des serveurs Paddle..."):
                 est_valide, statut = verifier_statut_abonnement_paddle(email_clean)
                 
                 if est_valide:
@@ -133,22 +133,22 @@ if not st.session_state.authentifie:
                     st.session_state.user_metier = metier
                     st.session_state.user_ville = ville_clean
                     st.session_state.authentifie = True
-                    st.success("✅ Accès autorisé ! Ouverture du tableau de bord...")
+                    st.success("✅ Accès autorise ! Ouverture du tableau de bord...")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ Accès refusé : Aucun abonnement trouvé chez Paddle.")
+                    st.error("❌ Accès refuse : Aucun abonnement trouve chez Paddle.")
         else:
             st.error("⚠️ Veuillez renseigner votre Email et votre Ville pour vous connecter.")
 
 else:
-    st.header(f"📊 Espace Privé de : {st.session_state.user_email}")
-    st.write(f"Vérification Paddle : ✅ **Abonnement Sécurisé** | Artisan : **{st.session_state.user_metier.upper()}** | Zone : **{st.session_state.user_ville}**")
+    st.header(f"📊 Espace Prive de : {st.session_state.user_email}")
+    st.write(f"Verification Paddle : ✅ Abonnement Securise | Artisan : {st.session_state.user_metier.upper()} | Zone : {st.session_state.user_ville}")
     
     st.write("---")
-    st.subheader("🔗 Automatisation & Alertes instantanées")
+    st.subheader("🔗 Automatisation & Alertes instantanees")
     
-    input_whatsapp = st.text_input("Votre numéro WhatsApp (Optionnel — ex: 33612345678)", value=st.session_state.whatsapp_num, placeholder="Laissez vide pour recevoir les alertes uniquement sur l'application")
+    input_whatsapp = st.text_input("Votre numero WhatsApp (Optionnel — ex: 33612345678)", value=st.session_state.whatsapp_num, placeholder="Laissez vide pour recevoir les alertes uniquement sur l'application")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -156,7 +156,7 @@ else:
             st.session_state.whatsapp_num = input_whatsapp.strip()
             st.session_state.robot_actif = True
             simuler_robot_arriere_plan()
-            st.success("🟢 Robot activé !")
+            st.success("🟢 Robot active !")
             st.rerun()
                 
     with col2:
@@ -167,24 +167,25 @@ else:
             
     if st.session_state.robot_actif:
         if st.session_state.whatsapp_num:
-            st.info(f"⚡ Le robot envoie vos alertes clients vers le numéro WhatsApp : **+{st.session_state.whatsapp_num}**")
+            st.info(f"⚡ Le robot envoie vos alertes clients vers le numero WhatsApp : +{st.session_state.whatsapp_num}")
         else:
             st.info("⚡ Le robot cherche des clients et envoie les alertes directement sur l'application ci-dessous.")
         
     st.write("---")
 
-    if st.button("🔎 Lancer une recherche manuelle immédiate sur le Web"):
+    if st.button("🔎 Lancer une recherche manuelle immediate sur le Web"):
         with st.spinner("Zelia scanne Google, Facebook et Reddit..."):
             mots_cles = DICTIONNAIRE_MOTS_CLES.get(st.session_state.user_metier, [st.session_state.user_metier])
             
-            # Utilisation du premier mot-clé principal pour une recherche claire sans doublons tactiles
             mot_principal = mots_cles[0] if mots_cles else st.session_state.user_metier
             leads = executer_vrai_scrapping_google(mot_principal, st.session_state.user_ville)
             
             for lead in leads:
-                st.markdown(f"""
-                <div class="lead-card">
-                    <h4>📍 Client potentiel détecté ({lead['plateforme']})</h4>
-                    <p>{lead['texte']}</p>
-                    <div class="pitch-box">
-                        <strong>Votre Pitch Commercial :</strong><br>{generer_pitch_automatique(st.session_state.user_metier, st.session_state.user_ville)}
+                # Élimination complète des sous-balises conflictuelles pour éviter le SyntaxError
+                texte_carte = lead["texte"]
+                plateforme_carte = lead["plateforme"]
+                lien_carte = lead["lien"]
+                pitch_carte = generer_pitch_automatique(st.session_state.user_metier, st.session_state.user_ville)
+                
+                st.markdown(f"### 📍 Client potentiel detecte ({plateforme_carte})")
+                st.write(texte_carte)
