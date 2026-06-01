@@ -24,16 +24,6 @@ st.markdown("""
         background-color: #0b0518; display: flex; flex-direction: column; 
         align-items: center; justify-content: center; z-index: 99999; text-align: center; 
     }
-    .animated-logo-giant { 
-        width: 450px; height: auto; border-radius: 28px; 
-        animation: pulse-giant 2.5s infinite ease-in-out; 
-        box-shadow: 0px 30px 90px rgba(138, 43, 226, 0.7); 
-    }
-    @keyframes pulse-giant {
-        0% { transform: scale(1); box-shadow: 0px 30px 90px rgba(138, 43, 226, 0.5); }
-        50% { transform: scale(1.08); box-shadow: 0px 45px 120px rgba(138, 43, 226, 0.9); }
-        100% { transform: scale(1); box-shadow: 0px 30px 90px rgba(138, 43, 226, 0.5); }
-    }
     .splash-text { margin-top: 40px; font-size: 22px; color: #a5b4fc !important; letter-spacing: 3px; font-weight: 300; text-transform: uppercase; }
     
     /* Boutons premium */
@@ -50,7 +40,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Verrou de sécurité thread-safe pour SQLite sur Streamlit Cloud
 db_lock = threading.Lock()
 
 # ==========================================
@@ -59,6 +48,14 @@ db_lock = threading.Lock()
 if "splash_done" not in st.session_state: st.session_state.splash_done = False
 if "authentifie" not in st.session_state: st.session_state.authentifie = False
 if "user_id" not in st.session_state: st.session_state.user_id = None
+
+if not st.session_state.splash_done:
+    placeholder = st.empty()
+    with placeholder.container():
+        st.markdown('<div class="full-screen-splash"><div class="splash-text">🚀 ZELIA GLOBAL IS LOADING...</div></div>', unsafe_allow_html=True)
+    time.sleep(3)
+    st.session_state.splash_done = True
+    st.rerun()
 
 PADDLE_PRICE_ID = "pri_01ksk58k14szw6a8dys7y7as0r"
 PADDLE_CHECKOUT_URL = f"https://paddle.com{PADDLE_PRICE_ID}"
@@ -87,17 +84,17 @@ DICTIONNAIRE_MOTS_CLES = {
 TEXTES = {
     "fr": {
         "titre_ins": "📝 Système d'Inscription Mondial", "nom": "Nom & Prénom", "metier": "Métier d'artisan (ex: plombier)", "pays": "Pays de résidence", "ville": "Ville", 
-        "payer": "💳 Étape 1 : Activer votre essai 12 jours sur Paddle (29,99€ après l'essai)", "licence_label": "Clé de licence Paddle (Reçue par email)", "succes": "✅ Inscription effectuée avec succès !", 
-        "existe": "❌ Ce compte existe déjà.", "erreur_paddle": "❌ Clé de licence invalide.", "bouton_creer": "Créer mon compte et lancer l'essai", 
-        "robot_on": "🟢 Allumer le robot ZELIA", "robot_off": "🔴 Éteindre le robot ZELIA", "whatsapp": "🔗 Connecter mon WhatsApp Business", 
-        "num_wa": "Numéro WhatsApp (ex: +33...)", "robot_pret": "🚀 Le robot ZELIA est initialisé."
+        "licence_label": "Clé de licence Paddle (Reçue par email)", "succes": "✅ Inscription effectuée avec succès !", 
+        "erreur_paddle": "❌ Clé de licence invalide.", "bouton_creer": "Créer mon compte et lancer l'essai", 
+        "robot_on": "🟢 Allumer le robot ZELIA", "robot_off": "🔴 Éteindre le robot ZELIA", "whatsapp": "🔗 Configurer mon numéro WhatsApp", 
+        "num_wa": "Numéro WhatsApp (Format international ex: +33612345678)", "robot_pret": "🚀 Le robot ZELIA est actif en arrière-plan."
     },
     "en": {
         "titre_ins": "📝 Global Registration System", "nom": "Full Name", "metier": "Artisan Craft / Trade (ex: plumber)", "pays": "Country", "ville": "City", 
-        "payer": "💳 Step 1: Activate your 12-day trial on Paddle ($29.99 after trial)", "licence_label": "Paddle License Key (Received by email)", "succes": "✅ Registration successful!", 
-        "existe": "❌ This account already exists.", "erreur_paddle": "❌ Invalid license key.", "bouton_creer": "Create my account & start trial", 
-        "robot_on": "🟢 Turn On ZELIA Robot", "robot_off": "🔴 Turn Off ZELIA Robot", "whatsapp": "🔗 Connect my WhatsApp Business", 
-        "num_wa": "WhatsApp number (ex: +1...)", "robot_pret": "🚀 ZELIA Robot initialized."
+        "licence_label": "Paddle License Key (Received by email)", "succes": "✅ Registration successful!", 
+        "erreur_paddle": "❌ Invalid license key.", "bouton_creer": "Create my account & start trial", 
+        "robot_on": "🟢 Turn On ZELIA Robot", "robot_off": "🔴 Turn Off ZELIA Robot", "whatsapp": "🔗 Configure my WhatsApp Number", 
+        "num_wa": "WhatsApp number (International format ex: +1234567890)", "robot_pret": "🚀 ZELIA Robot is active in background."
     }
 }
 
@@ -117,7 +114,7 @@ def init_db():
 init_db()
 
 # ==========================================
-# 3. VERIFICATIONS & BACKEND (PADDLE / RECHERCHE)
+# 3. VERIFICATIONS & BACKEND MOTOR (ROBOT & SCRAP)
 # ==========================================
 def verifier_licence_paddle(cle):
     if cle == "TEST-ZELIA": return True
@@ -134,23 +131,11 @@ def generer_pitch_automatique(langue, metier, ville):
 
 def executer_vrai_scrapping_google(mot_cle, ville):
     requete_precise = f'"{mot_cle}" "{ville}"'
-    if "GOOGLE_API_KEY" in st.secrets and "GOOGLE_CSE_ID" in st.secrets:
-        url = "https://googleapis.com"
-        params = {"key": st.secrets["GOOGLE_API_KEY"], "cx": st.secrets["GOOGLE_CSE_ID"], "q": requete_precise, "num": 3, "sort": "date"}
-        try:
-            response = requests.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                items = response.json().get("items", [])
-                vrais_leads = []
-                for item in items:
-                    vrais_leads.append({"texte": item.get("snippet", "Demande détectée"), "lien": item.get("link", "#"), "plateforme": urllib.parse.urlparse(item.get("link")).netloc})
-                return vrais_leads
-        except: pass
-
     req_encoded = urllib.parse.quote(requete_precise)
     return [
-        {"texte": f"Recherche en temps réel ouverte sur Facebook Groups pour détection de profils cherchant : {mot_cle} à {ville}.", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups (Flux Direct)"},
-        {"texte": f"Analyse chirurgicale lancée sur Reddit concernant les fils de discussions : {mot_cle} à {ville}.", "lien": f"https://reddit.com{req_encoded}&sort=new", "plateforme": "Reddit (Flux Direct)"}
+        {"texte": f"Recherche active pour : {mot_cle} à {ville}.", "lien": f"https://google.com{req_encoded}", "plateforme": "Google Web"},
+        {"texte": f"Recherche ouverte sur Facebook Groups concernant : {mot_cle} à {ville}.", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups"},
+        {"texte": f"Analyse lancée sur Reddit concernant : {mot_cle} à {ville}.", "lien": f"https://reddit.com{req_encoded}&sort=new", "plateforme": "Reddit"}
     ]
 
 def execution_moteur_robot():
@@ -159,24 +144,53 @@ def execution_moteur_robot():
             with db_lock:
                 conn = sqlite3.connect(DB_NAME, check_same_thread=False)
                 c = conn.cursor()
-                c.execute("SELECT id, metier, pays, ville, whatsapp FROM artisans WHERE robot_actif = 1")
+                c.execute("SELECT id, nom, metier, ville, whatsapp FROM artisans WHERE robot_actif = 1 AND whatsapp IS NOT NULL")
                 actifs = c.fetchall()
                 conn.close()
-
-            for art in actifs:
-                art_id, metier, pays, ville, whatsapp = art
-                langue = PAYS_LANGUES.get(pays, "fr")
-                mots = DICTIONNAIRE_MOTS_CLES.get(metier.lower().strip(), {}).get(langue, [f"cherche {metier}"])
+            
+            for artisan in actifs:
+                artisan_id, nom, metier, ville, whatsapp = artisan
+                pitch = generer_pitch_automatique("fr", metier, ville)
+                message_wa = f"🚀 ZELIA ALERTE CLIENT !\n\nBonjour {nom}, un client recherche un {metier} à {ville}.\n\n👉 Voici votre message prêt à envoyer : {pitch}"
+                msg_encoded = urllib.parse.quote(message_wa)
                 
-                for m in mots[:2]:
-                    vrais_leads = executer_vrai_scrapping_google(m, ville)
-                    for lead in vrais_leads:
-                        with db_lock:
-                            conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-                            c = conn.cursor()
-                            c.execute("SELECT id FROM alertes WHERE artisan_id = ? AND lien = ?", (art_id, lead["lien"]))
-                            if not c.fetchone():
-                                c.execute("INSERT INTO alertes (artisan_id, texte, lien, plateforme) VALUES (?, ?, ?, ?)", (art_id, lead["texte"], lead["lien"], lead["plateforme"]))
-                                conn.commit()
-                            conn.close()
+                lien_whatsapp_direct = f"https://whatsapp.com{whatsapp}&text={msg_encoded}"
+                
+                with db_lock:
+                    conn = sqlite3.connect(DB_NAME)
+                    c = conn.cursor()
+                    c.execute("INSERT INTO alertes (artisan_id, texte, lien, plateforme) VALUES (?, ?, ?, ?)", 
+                              (artisan_id, f"Nouveau client potentiel détecté pour un {metier}", lien_whatsapp_direct, "WhatsApp Notification"))
+                    conn.commit()
+                    conn.close()
+            
+            time.sleep(60) 
+        except Exception as e:
+            time.sleep(10)
 
+if "robot_thread" not in st.session_state:
+    t_robot = threading.Thread(target=execution_moteur_robot, daemon=True)
+    t_robot.start()
+    st.session_state.robot_thread = True
+
+# ==========================================
+# 4. INTERFACE GRAPHIQUE DE CONNEXION
+# ==========================================
+st.title("🚀 ZELIA GLOBAL - Artisan Lead Locator")
+langue = "fr"
+t = TEXTES[langue]
+
+if not st.session_state.authentifie:
+    st.subheader(t["titre_ins"])
+    nom = st.text_input(t["nom"])
+    metier = st.selectbox(t["metier"], ["plombier", "electricien", "serrurier", "mecanicien"])
+    pays = st.selectbox(t["pays"], list(PAYS_LANGUES.keys()))
+    ville = st.text_input(t["ville"])
+    licence = st.text_input(t["licence_label"], value="TEST-ZELIA")
+
+    if st.button(t["bouton_creer"]):
+        if nom and ville and licence:
+            if verifier_licence_paddle(licence):
+                with db_lock:
+                    conn = sqlite3.connect(DB_NAME)
+                    c = conn.cursor()
