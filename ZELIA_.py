@@ -4,28 +4,9 @@ import requests
 import urllib.parse
 
 # ==========================================
-# 1. CONFIGURATION DE LA PAGE & STYLE CSS
+# 1. CONFIGURATION DE LA PAGE
 # ==========================================
 st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
-
-st.markdown("""
-<style>
-    .stApp { background-color: #0b0518; color: #ffffff; }
-    h1, h2, h3, p, label, .stMarkdown { color: #ffffff !important; }
-    
-    /* Boutons premium */
-    div.stButton > button { 
-        background: linear-gradient(135deg, #8b5cf6 0%, #4c1d95 100%) !important; 
-        color: white !important; font-weight: 700 !important; border-radius: 10px !important; 
-        border: none !important; padding: 12px 24px !important; width: 100%; transition: all 0.3s ease; 
-    }
-    div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0px 8px 25px rgba(139, 92, 246, 0.5); }
-    
-    /* Cartes de leads */
-    .lead-card { background: #160d29; padding: 20px; border-radius: 12px; border-left: 6px solid #ef4444; margin-bottom: 20px; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3); }
-    .pitch-box { background: #0f071c; padding: 15px; border-radius: 8px; border: 1px dashed #6366f1; margin: 12px 0px; font-style: italic; color: #cbd5e1; }
-</style>
-""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. INITIALISATION DE LA MÉMOIRE CLOUD
@@ -76,8 +57,7 @@ def generer_pitch_automatique(metier, ville):
     return f"Bonjour, j'ai vu votre demande. Je suis {metier.lower()} qualifie sur {ville}. Disponible immediatement pour analyser votre besoin et vous faire un devis gratuit. Contactez-moi !"
 
 def executer_vrai_scrapping_google(mot_cle, ville):
-    requete_precise = f'"{mot_cle}" "{ville}"'
-    req_encoded = urllib.parse.quote(requete_precise)
+    req_encoded = urllib.parse.quote(f'"{mot_cle}" "{ville}"')
     return [
         {"texte": f"Besoin urgent : Recherche artisan {mot_cle} pour une intervention a {ville}.", "lien": f"https://google.com{req_encoded}", "plateforme": "Google Web Search"},
         {"texte": f"Demande postee sur un groupe local : Quelqu'un connait un bon {mot_cle} sur {ville} disponible ?", "lien": f"https://facebook.com{req_encoded}", "plateforme": "Facebook Groups"},
@@ -152,7 +132,7 @@ else:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🟢 Allumer le robot ZELIA"):
+        if st.button("🟢 Allumer le robot ZELIA", key="btn_on"):
             st.session_state.whatsapp_num = input_whatsapp.strip()
             st.session_state.robot_actif = True
             simuler_robot_arriere_plan()
@@ -160,7 +140,7 @@ else:
             st.rerun()
                 
     with col2:
-        if st.button("🔴 Éteindre le robot ZELIA"):
+        if st.button("🔴 Éteindre le robot ZELIA", key="btn_off"):
             st.session_state.robot_actif = False
             st.warning("🔴 Robot mis en pause.")
             st.rerun()
@@ -173,19 +153,38 @@ else:
         
     st.write("---")
 
-    if st.button("🔎 Lancer une recherche manuelle immediate sur le Web"):
+    if st.button("🔎 Lancer une recherche manuelle immediate sur le Web", key="btn_search_lead"):
         with st.spinner("Zelia scanne Google, Facebook et Reddit..."):
             mots_cles = DICTIONNAIRE_MOTS_CLES.get(st.session_state.user_metier, [st.session_state.user_metier])
-            
             mot_principal = mots_cles[0] if mots_cles else st.session_state.user_metier
             leads = executer_vrai_scrapping_google(mot_principal, st.session_state.user_ville)
             
-            for lead in leads:
-                # Élimination complète des sous-balises conflictuelles pour éviter le SyntaxError
-                texte_carte = lead["texte"]
-                plateforme_carte = lead["plateforme"]
-                lien_carte = lead["lien"]
-                pitch_carte = generer_pitch_automatique(st.session_state.user_metier, st.session_state.user_ville)
-                
-                st.markdown(f"### 📍 Client potentiel detecte ({plateforme_carte})")
-                st.write(texte_carte)
+            with st.container():
+                for i, lead in enumerate(leads):
+                    st.subheader(f"📍 Client potentiel detecte ({lead['plateforme']})")
+                    st.write(lead["texte"])
+                    st.info(f"👉 Pitch Commercial suggere : {generer_pitch_automatique(st.session_state.user_metier, st.session_state.user_ville)}")
+                    st.link_button("➡️ Ouvrir le flux et envoyer mon offre", lead["lien"], key=f"lnk_lead_{i}")
+                    st.write("---")
+
+    st.write("---")
+    st.subheader("🔔 Fil d'actualite de vos alertes clients")
+    
+    if st.session_state.robot_actif:
+        simuler_robot_arriere_plan()
+
+    if st.session_state.alertes_internes:
+        with st.container():
+            for j, alerte in enumerate(st.session_state.alertes_internes[:5]):
+                msg_txt, link_txt, plat_txt = alerte
+                st.write(f"⭐ **[{plat_txt}]** {msg_txt}")
+                st.link_button("👉 Ouvrir l'alerte", link_txt, key=f"lnk_alert_{j}")
+    else:
+        st.write("Aucune alerte automatique pour le moment. Cliquez sur 'Allumer le robot' pour lancer le flux.")
+
+    st.write("---")
+    if st.button("🚪 Se deconnecter / Quitter l'application", key="btn_logout"):
+        st.session_state.authentifie = False
+        st.session_state.user_email = None
+        st.session_state.alertes_internes = []
+        st.rerun()
