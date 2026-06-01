@@ -71,7 +71,8 @@ DB_NAME = "zelia_data.db"
 
 def init_db():
     with db_lock:
-        conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+        # L'argument timeout=20 empêche la base de données de se verrouiller
+        conn = sqlite3.connect(DB_NAME, timeout=20, check_same_thread=False)
         c = conn.cursor()
         c.execute("""CREATE TABLE IF NOT EXISTS artisans (
                         id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, metier TEXT, pays TEXT, ville TEXT, licence TEXT, whatsapp TEXT DEFAULT NULL, robot_actif INTEGER DEFAULT 0)""")
@@ -105,7 +106,7 @@ def execution_moteur_robot():
     while True:
         try:
             with db_lock:
-                conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+                conn = sqlite3.connect(DB_NAME, timeout=20, check_same_thread=False)
                 c = conn.cursor()
                 c.execute("SELECT id, nom, metier, ville, whatsapp FROM artisans WHERE robot_actif = 1 AND whatsapp IS NOT NULL")
                 actifs = c.fetchall()
@@ -119,7 +120,7 @@ def execution_moteur_robot():
                 lien_whatsapp_direct = f"https://whatsapp.com{whatsapp}&text={msg_encoded}"
                 
                 with db_lock:
-                    conn = sqlite3.connect(DB_NAME)
+                    conn = sqlite3.connect(DB_NAME, timeout=20)
                     c = conn.cursor()
                     c.execute("INSERT INTO alertes (artisan_id, texte, lien, plateforme) VALUES (?, ?, ?, ?)", 
                               (artisan_id, f"Nouveau client potentiel détecté pour un {metier}", lien_whatsapp_direct, "WhatsApp Notification"))
@@ -159,7 +160,7 @@ if not st.session_state.authentifie:
         if nom_clean and ville_clean and licence_clean:
             if verifier_licence_paddle(licence_clean):
                 with db_lock:
-                    conn = sqlite3.connect(DB_NAME)
+                    conn = sqlite3.connect(DB_NAME, timeout=20)
                     c = conn.cursor()
                     c.execute("INSERT INTO artisans (nom, metier, pays, ville, licence) VALUES (?, ?, ?, ?, ?)", (nom_clean, metier, pays, ville_clean, licence_clean))
                     conn.commit()
@@ -185,7 +186,7 @@ else:
     st.subheader(t["whatsapp"])
     
     with db_lock:
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_NAME, timeout=20)
         c = conn.cursor()
         c.execute("SELECT whatsapp, robot_actif FROM artisans WHERE nom = ?", (st.session_state.user_id,))
         row = c.fetchone()
@@ -201,7 +202,7 @@ else:
         if st.button(t["robot_on"]):
             if input_whatsapp:
                 with db_lock:
-                    conn = sqlite3.connect(DB_NAME)
+                    conn = sqlite3.connect(DB_NAME, timeout=20)
                     c = conn.cursor()
                     c.execute("UPDATE artisans SET whatsapp = ?, robot_actif = 1 WHERE nom = ?", (input_whatsapp, st.session_state.user_id))
                     conn.commit()
@@ -214,6 +215,3 @@ else:
     with col2:
         if st.button(t["robot_off"]):
             with db_lock:
-                conn = sqlite3.connect(DB_NAME)
-                c = conn.cursor()
-                c.execute("UPDATE artisans SET robot_actif = 0 WHERE nom = ?", (st.session_state.user_id,))
