@@ -21,7 +21,7 @@ if "user_ville" not in st.session_state: st.session_state.user_ville = ""
 if "whatsapp_num" not in st.session_state: st.session_state.whatsapp_num = ""
 if "robot_actif" not in st.session_state: st.session_state.robot_actif = False
 
-PADDLE_CHECKOUT_URL = "https://zelia-global.com" # Remplace par ton lien de paiement Paddle
+PADDLE_CHECKOUT_URL = "https://paddle.com" # Remplace par ton lien de paiement Paddle
 
 # ==========================================
 # 2. SYSTÈME DE SÉCURITÉ PADDLE STRICT
