@@ -158,7 +158,7 @@ else:
                 st.markdown(f"### 📍 Client potentiel ({lead.get('plateforme', 'Web')})")
                 st.write(lead.get("texte", ""))
                 
-                                # Génération du lien de redirection réel
+                # Génération du lien de redirection réel
                 lien_final = client.get("lien", "https://google.com")
                 
                 # Si l'artisan a configuré son WhatsApp, on lui prépare le message
