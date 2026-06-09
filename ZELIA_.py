@@ -158,13 +158,20 @@ else:
                 st.markdown(f"### 📍 Client potentiel ({lead.get('plateforme', 'Web')})")
                 st.write(lead.get("texte", ""))
                 
-                # Génération du bouton d'action cliquable
-                lien_final = lead.get("lien", "#")
-                if st.session_state.whatsapp_num and "whatsapp.com" not in lien_final:
-                    # Si l'artisan a configuré son WhatsApp, on prépare le message à envoyer
-                    msg_wa = f"Bonjour, je vous contacte concernant votre recherche de {st.session_state.user_metier} à {st.session_state.user_ville}..."
-                    lien_final = f"https://whatsapp.com{st.session_state.whatsapp_num}&text={urllib.parse.quote(msg_wa)}"
+                                # Génération du lien de redirection réel
+                lien_final = client.get("lien", "https://google.com")
                 
+                # Si l'artisan a configuré son WhatsApp, on lui prépare le message
+                if st.session_state.whatsapp_num and "whatsapp.com" not in lien_final:
+                    pitch_wa = f"Bonjour, je vous contacte suite à votre demande urgente de {st.session_state.user_metier} sur {st.session_state.user_ville}..."
+                    lien_final = f"https://whatsapp.com{st.session_state.whatsapp_num}&text={urllib.parse.quote(pitch_wa)}"
+                
+                st.info(f"💡 **Pitch suggéré :** {generer_pitch_commercial(st.session_state.user_metier, st.session_state.user_ville)}")
+                
+                # LA CORRECTION SÉCURISÉE ICI : Un vrai bouton de lien Streamlit natif
+                st.link_button("➡️ Décrocher ce chantier immédiatement", lien_final, key=f"btn_client_saas_{idx}", use_container_width=True)
+                st.write("---")
+
                 st.info(f"💡 **Pitch suggéré :** {generer_pitch_automatique(st.session_state.user_metier, st.session_state.user_ville)}")
                 st.link_button("➡️ Contacter ce client immédiatement", lien_final, key=f"btn_lead_{i}")
                 st.write("---")
