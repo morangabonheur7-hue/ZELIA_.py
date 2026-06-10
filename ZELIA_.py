@@ -10,7 +10,7 @@ st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
 
 # Clés de connexion réelles et soudées caractère par caractère
 PADDLE_API_KEY = "pdl_live_apikey_01ktezxq12q0j88mtc9ven94xz_QPM2hzX6pBWRDRarmvTS9W_A0Y"
-SUPABASE_URL = "https://supabase.co"
+SUPABASE_URL = "https://qjfipgzuwkprfowgbimt.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1d2twcmZvd2diaW10Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDc2MDI0OSwiZXhwIjoyMDk6MzM2MjQ5fQ.zkDmslMSHuPtS2mJgC4qwWca5cq8IZUQMz6p6ecpTNA"
 
 # Initialisation de la mémoire de session (Anti-bug)
