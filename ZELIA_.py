@@ -19,7 +19,7 @@ if "user_email" not in st.session_state: st.session_state.user_email = None
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
 if "user_ville" not in st.session_state: st.session_state.user_ville = ""
 if "whatsapp_num" not in st.session_state: st.session_state.whatsapp_num = ""
-if "flux_actif" not in st.session_state: st.session_state.flux_actif = True  # Activé par défaut
+if "flux_actif" not in st.session_state: st.session_state.flux_actif = True  
 if "langue" not in st.session_state: st.session_state.langue = "Français"
 
 PADDLE_CHECKOUT_URL = "https://paddle.com"
@@ -39,15 +39,17 @@ DICTIONNAIRE_LANGUES = {
         "config_wa": "⚙️ Configuration de vos alertes WhatsApp Internationales",
         "placeholder_wa": "Ex: 33612345678 (Laissez vide pour utiliser uniquement le site)",
         "btn_wa": "💾 Enregistrer la configuration WhatsApp",
-        "flux_statut": "Live stream is ON. Fetching real clients in real-time...",
+        "flux_statut": "Le flux en direct est ouvert. Recherche de clients en temps réel...",
         "flux_pause": "🔴 Le flux en direct est FERMÉ. Les recherches sont masquées.",
         "btn_allumer": "🟢 ALLUMER LE FLUX (Afficher les clients)",
         "btn_fermer": "🔴 FERMER LE FLUX (Masquer les clients)",
-        "titre_chantiers": "📬 Vrais chantiers détectés en temps réel (Reddit Global)",
+        "titre_chantiers": "📬 Vrais chantiers détectés en temps réel (Zelia Global Engine)",
         "aucun_client": "🔎 Le robot fouille les forums mondiaux... Aucun client trouvé pour cette zone à cet instant.",
         "pitch_label": "💡 Message préparé pour le client :",
         "btn_action": "➡️ Décrocher ce chantier immédiatement (Ouvrir le vrai lien)",
-        "btn_logout": "🚪 Se déconnecter de ZELIA GLOBAL"
+        "btn_logout": "🚪 Se déconnecter de ZELIA GLOBAL",
+        "info_paddle": "📋 INFORMATIONS COMPLIANCE PADDLE",
+        "info_texte": "• **Tarif :** 29€/mois après 12 jours d'essai gratuit.\n• **Support client :** support@zelia-global.com\n• **CGV :** Ce service fournit des leads issus de publications publiques sur le web. Désabonnement en 1 clic."
     },
     "English": {
         "titre_connexion": "🔐 Secure Connection to Zelia Infrastructure",
@@ -64,11 +66,13 @@ DICTIONNAIRE_LANGUES = {
         "flux_pause": "🔴 Live stream is OFF. Real-time clients are hidden.",
         "btn_allumer": "🟢 TURN STREAM ON (Show clients)",
         "btn_fermer": "🔴 TURN STREAM OFF (Hide clients)",
-        "titre_chantiers": "📬 Real leads detected in real-time (Reddit Global)",
+        "titre_chantiers": "📬 Real leads detected in real-time (Zelia Global Engine)",
         "aucun_client": "🔎 The robot is scanning global forums... No real client found in this area at this moment.",
         "pitch_label": "💡 Prepared message for the client:",
         "btn_action": "➡️ Claim this job immediately (Open real link)",
-        "btn_logout": "🚪 Logout from ZELIA GLOBAL"
+        "btn_logout": "🚪 Logout from ZELIA GLOBAL",
+        "info_paddle": "📋 PADDLE COMPLIANCE INFORMATION",
+        "info_texte": "• **Pricing:** 29€/month after a 12-day free trial.\n• **Customer Support:** support@zelia-global.com\n• **Terms:** This service provides leads from public web sources. Cancel anytime in 1 click."
     }
 }
 
@@ -90,7 +94,8 @@ def verifier_statut_abonnement_paddle(email):
 
 def extraire_les_clients_de_la_base(metier, ville):
     ville_requete = ville.strip().lower()
-    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=eq.{ville_requete}&limit=10"
+    # Recherche élargie (Ville saisie OU leads généraux 'france') pour éviter un écran vide
+    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville_requete},france)&order=id.desc&limit=10"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         response = requests.get(url, headers=headers, timeout=8)
@@ -103,7 +108,6 @@ def extraire_les_clients_de_la_base(metier, ville):
 # ==========================================
 # 4. INTERFACE GRAPHIQUE (TABLEAU DE BORD)
 # ==========================================
-# Sélecteur de langue universel disponible dans la barre latérale
 st.session_state.langue = st.sidebar.selectbox("🌐 Language / Langue", ["Français", "English"])
 lang = DICTIONNAIRE_LANGUES[st.session_state.langue]
 
@@ -134,6 +138,12 @@ if not st.session_state.authentifie:
             else: 
                 st.error(lang["erreur_champs"])
 
+    # 🌟 BLINDAGE SÉCURITÉ PADDLE : Affichage obligatoire de conformité pour validation immédiate
+    st.write("")
+    with st.container(border=True):
+        st.markdown(f"#### {lang['info_paddle']}")
+        st.markdown(lang['info_texte'])
+
 # ÉCRAN B : LE TABLEAU DE BORD D'ALERTE EN DIRECT (CONNECTÉ)
 else:
     st.header(f"📊 {lang['titre_chantiers']}")
@@ -147,7 +157,7 @@ else:
         st.success("OK !")
         
     st.write("---")
-    
+
     # INTERRUPTEUR DU FLUX EN DIRECT (MARCHE / ARRÊT)
     col1, col2 = st.columns(2)
     with col1:
@@ -163,26 +173,47 @@ else:
     
     # Affichage dynamique des vrais clients si le bouton est allumé
     if st.session_state.flux_actif:
-        st.success(lang["flux_statut"])
+        st.info(lang["flux_statut"])
         
         liste_clients = extraire_les_clients_de_la_base(st.session_state.user_metier, st.session_state.user_ville)
         
         if liste_clients:
             for idx, client in enumerate(liste_clients):
-                with st.container():
-                    st.markdown(f"### 📍 Real Client ({client.get('plateforme', 'Reddit Search')})")
+                # Design épuré "Grand Logiciel" avec bordures de séparation
+                with st.container(border=True):
+                    plateforme = client.get('plateforme', 'Google Global Engine')
+                    st.markdown(f"### 📍 Real Client ({plateforme})")
                     st.write(client.get("texte", "No details"))
                     
-                    # Récupération du vrai profil Reddit du client envoyé par le robot
-                    lien_brut = client.get("lien", "https://reddit.com")
-                    
+                    # Récupération du vrai profil/lien du client envoyé par le robot
+                    lien_brut = client.get("lien", "https://google.com")
+
                     # Construction du message préparé automatique pour l'artisan
                     if st.session_state.langue == "Français":
                         pitch = f"Bonjour, je vois votre demande pour un {st.session_state.user_metier} à {st.session_state.user_ville}. Je suis qualifié et disponible immédiatement !"
                     else:
                         pitch = f"Hello, I just saw your request for an {st.session_state.user_metier} in {st.session_state.user_ville}. I am qualified and available immediately!"
                     
-                    # Routage intelligent du bouton d'action
+                    st.text_area(lang["pitch_label"], value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
+                    
+                    # ROUTAGE SÉCURISÉ ET INTÉGRAL (Correction de la coupure)
                     if st.session_state.whatsapp_num:
-                        lien_final = f"https://whatsapp.com{st.session_state.whatsapp_num}&text={urllib.parse.quote(pitch)}"
-                        
+                        lien_final = f"https://wa.me{st.session_state.whatsapp_num}?text={urllib.parse.quote(pitch)}"
+                    else:
+                        lien_final = lien_brut
+                    
+                    # Bouton d'action principal Premium coloré
+                    st.link_button(lang["btn_action"], lien_final, use_container_width=True, type="primary")
+        else:
+            st.warning(lang["aucun_client"])
+            
+    else:
+        st.warning(lang["flux_pause"])
+
+    # Bouton de déconnexion globale pour l'artisan
+    st.write("---")
+    if st.button(lang["btn_logout"], use_container_width=True):
+        st.session_state.authentifie = False
+        st.session_state.user_email = None
+        st.session_state.whatsapp_num = ""
+        st.rerun()
