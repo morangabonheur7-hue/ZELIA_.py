@@ -9,6 +9,7 @@ import urllib.parse
 st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
 
 # Clés de connexion réelles et soudées caractère par caractère
+RESEND_API_KEY = "re_7fidYWed_3hLMv1XeTBQ3urCAr9SQoHCz
 PADDLE_API_KEY = "pdl_live_apikey_01ktezxq12q0j88mtc9ven94xz_QPM2hzX6pBWRDRarmvTS9W_A0Y"
 SUPABASE_URL = "https://qjfipgzuwkprfowgbimt.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1d2twcmZvd2diaW10Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDc2MDI0OSwiZXhwIjoyMDk6MzM2MjQ5fQ.zkDmslMSHuPtS2mJgC4qwWca5cq8IZUQMz6p6ecpTNA"
@@ -172,48 +173,61 @@ else:
     st.write("---")
     
     # Affichage dynamique des vrais clients si le bouton est allumé
-    if st.session_state.flux_actif:
-        st.info(lang["flux_statut"])
-        
-        liste_clients = extraire_les_clients_de_la_base(st.session_state.user_metier, st.session_state.user_ville)
-        
-        if liste_clients:
-            for idx, client in enumerate(liste_clients):
-                # Design épuré "Grand Logiciel" avec bordures de séparation
-                with st.container(border=True):
-                    plateforme = client.get('plateforme', 'Google Global Engine')
-                    st.markdown(f"### 📍 Real Client ({plateforme})")
-                    st.write(client.get("texte", "No details"))
-                    
-                    # Récupération du vrai profil/lien du client envoyé par le robot
-                    lien_brut = client.get("lien", "https://google.com")
-
-                    # Construction du message préparé automatique pour l'artisan
-                    if st.session_state.langue == "Français":
-                        pitch = f"Bonjour, je vois votre demande pour un {st.session_state.user_metier} à {st.session_state.user_ville}. Je suis qualifié et disponible immédiatement !"
-                    else:
-                        pitch = f"Hello, I just saw your request for an {st.session_state.user_metier} in {st.session_state.user_ville}. I am qualified and available immediately!"
-                    
-                    st.text_area(lang["pitch_label"], value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
-                    
-                    # ROUTAGE SÉCURISÉ ET INTÉGRAL (Correction de la coupure)
-                    if st.session_state.whatsapp_num:
-                        lien_final = f"https://wa.me{st.session_state.whatsapp_num}?text={urllib.parse.quote(pitch)}"
-                    else:
-                        lien_final = lien_brut
-                    
-                    # Bouton d'action principal Premium coloré
-                    st.link_button(lang["btn_action"], lien_final, use_container_width=True, type="primary")
-        else:
-            st.warning(lang["aucun_client"])
-            
+if st.session_state.flux_actif:
+    st.info(lang["flux_statut"])
+    
+    liste_clients = extraire_les_clients_de_la_base(st.session_state.user_metier, st.session_state.user_ville)
+    
+    if liste_clients:
+        for idx, client in enumerate(liste_clients):
+            with st.container(border=True):
+                plateforme = client.get('plateforme', 'Google Global Engine')
+                st.markdown(f"### 📍 Client Disponible ({plateforme})")
+                st.write(client.get("texte", "No details"))
+                
+                lien_brut = client.get("lien", "https://google.com")
+                
+                if st.session_state.langue == "Français":
+                    pitch = f"Bonjour, je vois votre demande pour un {st.session_state.user_metier} à {st.session_state.user_ville}. Je suis qualifié et disponible immédiatement !"
+                else:
+                    pitch = f"Hello, I just saw your request for an {st.session_state.user_metier} in {st.session_state.user_ville}. I am qualified and available immediately!"
+                
+                st.text_area(lang["pitch_label"], value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
+                
+                # --- BOUTON 1 : WHATSAPP DIRECT ---
+                num_tel = st.session_state.whatsapp_num if st.session_state.whatsapp_num else "33600000000"
+                lien_whatsapp_direct = f"https://wa.me{num_tel}?text={urllib.parse.quote(pitch)}"
+                st.link_button("🟢 Contacter le client sur WhatsApp (Gratuit)", lien_whatsapp_direct, use_container_width=True)
+                
+                # --- BOUTON 2 : ALERTE EMAIL RESEND ---
+                if st.button(f"📧 Recevoir ce chantier par E-mail (Lead #{idx})", key=f"resend_{idx}", use_container_width=True):
+                    url_resend = "https://resend.com"
+                    headers_resend = {
+                        "Authorization": f"Bearer {RESEND_API_KEY}",
+                        "Content-Type": "application/json"
+                    }
+                    payload_resend = {
+                        "from": "Zelia Global <onboarding@resend.dev>",
+                        "to": [st.session_state.user_email],
+                        "subject": f"🚨 ALERTE CHANTIER : {st.session_state.user_metier.upper()}",
+                        "html": f"""
+                        <div style="font-family: sans-serif; padding: 20px; background-color: #f4f4f4;">
+                            <h2 style="color: #FF4B4B;">⚡ ZELIA GLOBAL DETECTOR</h2>
+                            <p>Un nouveau chantier vient d'être détecté pour le métier de <strong>{st.session_state.user_metier}</strong> :</p>
+                            <p style="background: white; padding: 15px; border-radius: 5px;">{client.get('texte', 'Pas de détails')}</p>
+                            <p><strong>Message commercial préparé :</strong> {pitch}</p>
+                            <p><a href="{lien_brut}" style="background: #FF4B4B; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Ouvrir le chantier original</a></p>
+                        </div>
+                        """
+                    }
+                    try:
+                        res_resend = requests.post(url_resend, json=payload_resend, headers=headers_resend, timeout=10)
+                        if res_resend.status_code == 200 or res_resend.status_code == 201:
+                            st.success("🎯 Alerte e-mail envoyée ! Regarde ta boîte de réception.")
+                        else:
+                            st.error(f"Erreur Resend : {res_resend.status_code}")
+                    except Exception as e:
+                        st.error(f"Erreur connexion : {e}")
     else:
-        st.warning(lang["flux_pause"])
-
-    # Bouton de déconnexion globale pour l'artisan
-    st.write("---")
-    if st.button(lang["btn_logout"], use_container_width=True):
-        st.session_state.authentifie = False
-        st.session_state.user_email = None
-        st.session_state.whatsapp_num = ""
-        st.rerun()
+        st.warning(lang["aucun_client"])
+                              
