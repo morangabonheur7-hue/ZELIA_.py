@@ -16,9 +16,9 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 # Initialisation de la mémoire de session (Anti-bug)
 if "authentifie" not in st.session_state: st.session_state.authentifie = False
-if "user_email" not in st.session_state: st.session_state.user_email = None
+if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
-if "user_ville" not in st.session_state: st.session_state.user_ville = ""
+if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "whatsapp_num" not in st.session_state: st.session_state.whatsapp_num = ""
 if "flux_actif" not in st.session_state: st.session_state.flux_actif = True  
 if "langue" not in st.session_state: st.session_state.langue = "Français"
@@ -94,9 +94,11 @@ def verifier_statut_abonnement_paddle(email):
     return False, "Aucun abonnement valide / No valid subscription"
 
 def extraire_les_clients_de_la_base(metier, ville):
-    ville_requete = ville.strip().lower()
-    # Recherche élargie (Ville saisie OU leads généraux 'france') pour éviter un écran vide
-    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville_requete},france)&order=id.desc&limit=10"
+    # Enlève les espaces et force les minuscules (Ex: "Paris " devient "paris")
+    ville_propre = ville.strip().lower()
+    
+    # Recherche la ville ET inclut toujours "global" et "france" pour ne jamais être vide
+    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville_propre},global,france)&order=id.desc&limit=10"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         response = requests.get(url, headers=headers, timeout=8)
