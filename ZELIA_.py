@@ -43,7 +43,7 @@ def inscrire_nouvel_artisan(email, metier, ville):
     payload = [{"email": email.lower(), "metier": metier.lower(), "ville": ville.lower()}]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        return res.status_code in [200, 201]
+        return res.status_code == 200 or res.status_code == 201
     except:
         return False
 
@@ -148,7 +148,7 @@ else:
                     }
                     try:
                         res = requests.post(url_resend, json=payload_resend, headers=headers_resend, timeout=10)
-    if res.status_code == 200 or res.status_code == 201: st.success("🎯 Alerte envoyée dans ta boîte mail !")
+                if res.status_code == 200 or res.status_code == 201: st.success("🎯 Alerte envoyée dans ta boîte mail !")
                         else: st.error("Erreur d'envoi Resend.")
                     except: st.error("Connexion Resend échouée.")
     else:
