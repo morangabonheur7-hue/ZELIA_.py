@@ -148,7 +148,7 @@ else:
                     }
                     try:
                         res = requests.post(url_resend, json=payload_resend, headers=headers_resend, timeout=10)
-                        if res.status_code in: st.success("🎯 Alerte envoyée dans ta boîte mail !")
+    if res.status_code == 200 or res.status_code == 201: st.success("🎯 Alerte envoyée dans ta boîte mail !")
                         else: st.error("Erreur d'envoi Resend.")
                     except: st.error("Connexion Resend échouée.")
     else:
