@@ -146,11 +146,15 @@ else:
                         "subject": f"🚨 ALERTE CHANTIER IMMÉDIAT : {st.session_state.user_metier.upper()}",
                         "html": f"<h3>🚀 ZELIA GLOBAL</h3><p>Chantier disponible : {client.get('texte')}</p><p>Lien : {lien_brut}</p>"
                     }
-                    try:
+                                        try:
                         res = requests.post(url_resend, json=payload_resend, headers=headers_resend, timeout=10)
-                if res.status_code == 200 or res.status_code == 201: st.success("🎯 Alerte envoyée dans ta boîte mail !")
-                        else: st.error("Erreur d'envoi Resend.")
-                    except: st.error("Connexion Resend échouée.")
+                        if res.status_code == 200 or res.status_code == 201: 
+                            st.success("🎯 Alerte envoyée dans ta boîte mail !")
+                        else: 
+                            st.error("Erreur d'envoi Resend.")
+                    except Exception as e: 
+                        st.error(f"Connexion Resend échouée : {e}")
+            
     else:
         st.warning(f"🔎 Aucun client trouvé à {st.session_state.user_ville.upper()} pour le métier de {st.session_state.user_metier} pour le moment. Le robot cherche en continu.")
 
