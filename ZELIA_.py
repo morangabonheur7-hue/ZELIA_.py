@@ -146,3 +146,22 @@ else:
         st.session_state.authentifie = False
         st.session_state.user_email = ""
         st.rerun()
+
+# ==========================================
+# 5. PÔLE SUPPORT CLIENTS EN DIRECT (DÉBLOQUAGE)
+# ==========================================
+st.write("---")
+st.markdown("### 🛠️ Besoin d'assistance technique ?")
+st.write("Si un bouton ne réagit pas ou si votre flux local est en cours de chargement, contactez nos ingénieurs en direct.")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    message_support = f"Bonjour le support ZELIA, je rencontre un problème pour ouvrir mes chantiers. Pouvez-vous me valider manuellement ?"
+    lien_support_whatsapp = f"https://wa.me{urllib.parse.quote(message_support)}"
+    st.link_button("💬 Discuter sur WhatsApp (Direct)", lien_support_whatsapp, use_container_width=True)
+
+with col2:
+    # 🌟 TON APPORT : Affichage de l'e-mail pro de ta marque
+    st.link_button("📧 Nous écrire par E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
+    
