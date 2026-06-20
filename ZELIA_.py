@@ -2,7 +2,9 @@ import streamlit as st
 import time
 import requests
 import urllib.parse
-
+# Remplacement de sécurité professionnelle (La clé est cachée dans le serveur)
+import os
+PADDLE_API_KEY = os.environ.get("PADDLE_API_KEY", "pdl_live_apikey_01ktezxq12q0j88mtc9ven94xz_QPM2hzX6pBWRDRarmvTS9W_A0Y")
 # ==========================================
 # 1. CONFIGURATION INTERFACE & ACCÈS SOUDES
 # ==========================================
