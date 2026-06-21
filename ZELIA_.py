@@ -28,10 +28,14 @@ def verifier_si_utilisateur_existe(email):
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200 and len(res.json()) > 0: return res.json()
-    except: pass
+        if res.status_code == 200:
+            donnees = res.json()
+            if len(donnees) > 0:
+                return donnees[0]  # <--- ICI : On prend le premier utilisateur [0]
+    except:
+        pass
     return None
-
+    
 def inscrire_nouvel_artisan(email, metier, ville):
     url = f"{SUPABASE_URL}/rest/v1/utilisateurs"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
