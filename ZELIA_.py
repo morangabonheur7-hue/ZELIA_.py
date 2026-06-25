@@ -33,7 +33,12 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0: 
-                return donnees[0] # ✨ SOLUTION : On extrait strictement le premier utilisateur (Index 0)
+                # On extrait le premier dictionnaire de la liste
+                u = donnees[0]
+                # Sécurité absolue : si la clé n'existe pas ou vaut None, on met du texte vide
+                if "facebook_group_url" not in u or u["facebook_group_url"] is None:
+                    u["facebook_group_url"] = ""
+                return u
     except: pass
     return None
     
@@ -83,7 +88,7 @@ if not st.session_state.authentifie:
                 st.session_state.user_email = utilisateur['email']
                 st.session_state.user_metier = utilisateur['metier']
                 st.session_state.user_ville = utilisateur['ville']
-                st.session_state.facebook_group = utilisateur.get('facebook_group_url', '')
+                st.session_state.facebook_group = str(utilisateur['facebook_group_url'])
                 st.session_state.authentifie = True
                 st.rerun()
         else:
@@ -166,4 +171,4 @@ else:
                     st.write("")
                     
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
-                        headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
+                     headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
