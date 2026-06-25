@@ -56,7 +56,8 @@ def mettre_a_jour_groupe_artisan(email, nouveau_groupe):
 
 def extraire_leads_strict(metier, ville):
     il_y_a_3_jours = (datetime.datetime.utcnow() - datetime.timedelta(hours=72)).isoformat()
-    url = f"{SUPABASE_URL}/rest/v1/chantiers?metier=eq.{metier.lower()}&ville=in.({ville.lower()},global)&created_at=gte.{il_y_a_3_jours}&order=id.desc&limit=250"
+    # Utilisation stricte de votre table 'leads' d'origine
+    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville.lower()},global)&created_at=gte.{il_y_a_3_jours}&order=id.desc&limit=250"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
@@ -98,7 +99,7 @@ if not st.session_state.authentifie:
                             st.success("Compte validé !")
                             time.sleep(1)
                             st.rerun()
-                        else: st.error("Erreur base de données.")
+                        else: st.error("Erreur de communication avec la base de données.")
                     else: st.error("Veuillez remplir tous les champs.")
 
 # ==========================================
@@ -129,7 +130,8 @@ else:
         
         for client in leads_bruts:
             try:
-                date_client = datetime.datetime.fromisoformat(client.get("created_at", "").split("+")[0])
+                date_str = client.get("created_at", "").split("+")[0]
+                date_client = datetime.datetime.fromisoformat(date_str)
                 diff_h = (maintenant - date_client).total_seconds() / 3600
                 if choix_temps == "⏱️ Maintenant (<2h)" and diff_h <= 2: leads_filtres.append(client)
                 elif choix_temps == "🚀 Aujourd'hui (<8h)" and diff_h <= 8: leads_filtres.append(client)
@@ -155,31 +157,49 @@ else:
                     
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
                         headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
-                        payload_resend = {"from": "Zelia Global <onboarding@resend.dev>", "to": [st.session_state.user_email], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{client.get('texte')}</p><br><a href='{lien_brut}'>Lien</a>"}
+                        payload_resend = {"from": "Zelia Global <onboarding@resend.dev>", "to": [st.session_state.user_email], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{client.get('texte', '')}</p><br><a href='{lien_brut}'>Lien</a>"}
                         try:
                             res = requests.post("https://resend.com", json=payload_resend, headers=headers_resend, timeout=10)
-                            if res.status_code in: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
-      else:
-                                st.error(f"Erreur serveur Resend ({res.status_code})")
-                        except: 
-                            st.error("Connexion au serveur de messagerie échouée.")
-        else: 
-            st.info("🔎 Aucun chantier dans cette tranche. Élargissez le filtre temporel.")
-    else: 
-        st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
+                    if res.status_code in:
+    st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+else:
+    st.error(f"Erreur d'envoi ({res.status_code})")
 
-    st.write("---")
-    if st.button("🚪 Se déconnecter", use_container_width=True):
-        st.session_state.authentifie = False
-        st.session_state.user_email = ""
-        st.rerun()
-        
+except:
+    st.error("Échec de connexion au service d'e-mail.")
+
+else:
+    st.info("🔎 Aucun chantier dans cette tranche.")
+
+else:
+    st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
+
+st.write("---")
+
+if st.button("🚪 Se déconnecter", use_container_width=True):
+    st.session_state.authentifie = False
+    st.session_state.user_email = ""
+    st.rerun()
+
 # ==========================================
 # 5. PÔLE SUPPORT CLIENTS EN DIRECT
 # ==========================================
+
 st.write("---")
 st.markdown("### 🛠️ Assistance Technique")
+
 c1, c2 = st.columns(2)
-with c1: st.link_button("💬 Support WhatsApp Direct", "https://wa.me", use_container_width=True)
-with c2: st.link_button("📧 Support E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
-Utilisez le code                             
+
+with c1:
+    st.link_button(
+        "💬 Support WhatsApp Direct",
+        "https://wa.me/",
+        use_container_width=True
+    )
+
+with c2:
+    st.link_button(
+        "📧 Support E-mail",
+        "mailto:support.zelia@gmail.com",
+        use_container_width=True
+            )
