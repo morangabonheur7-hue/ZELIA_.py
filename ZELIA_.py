@@ -1,19 +1,24 @@
 import streamlit as st
 import time, requests, urllib.parse, os, datetime
+
 st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
+
 SUPABASE_URL = "https://qjfipgzuwkprfowgbimt.supabase.co"
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1d2twcmZvd2diaW10Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDc2MDI0OSwiZXhwIjoyMDk2MzM2MjQ5fQ.zkDmslMSHuPtS2mJgC4qwWca5cq8IZUQMz6p6ecpTNA")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "re_7fidYWed_3hLMv1XeTBQ3urCAr9SQoHCz")
+
 if "authentifie" not in st.session_state: st.session_state.authentifie = False
 if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
 if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "facebook_group" not in st.session_state: st.session_state.facebook_group = ""
+
 def formater_nom_groupe_en_url(nom_ou_lien):
     txt = nom_ou_lien.strip()
     if not txt: return ""
     if "facebook.com" in txt.lower(): return txt
     return f"https://facebook.com{urllib.parse.quote(txt)}"
+
 def verifier_si_utilisateur_existe(email):
     url = f"{SUPABASE_URL}/rest/v1/utilisateurs?email=eq.{email.lower()}"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
@@ -25,6 +30,7 @@ def verifier_si_utilisateur_existe(email):
             return u
     except: pass
     return None
+
 def inscrire_nouvel_artisan(email, metier, ville, groupe_fb):
     url = f"{SUPABASE_URL}/rest/v1/utilisateurs"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
@@ -34,6 +40,7 @@ def inscrire_nouvel_artisan(email, metier, ville, groupe_fb):
         if res.status_code == 200 or res.status_code == 201: return True
     except: pass
     return False
+
 def mettre_a_jour_groupe_artisan(email, nouveau_groupe):
     url = f"{SUPABASE_URL}/rest/v1/utilisateurs?email=eq.{email.lower()}"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"}
@@ -43,6 +50,7 @@ def mettre_a_jour_groupe_artisan(email, nouveau_groupe):
         if res.status_code == 200 or res.status_code == 204: return True
     except: pass
     return False
+
 def extraire_leads_strict(metier, ville):
     il_y_a_3_jours = (datetime.datetime.utcnow() - datetime.timedelta(hours=72)).isoformat()
     url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville.lower()},global)&created_at=gte.{il_y_a_3_jours}&order=id.desc&limit=250"
@@ -52,8 +60,19 @@ def extraire_leads_strict(metier, ville):
         if res.status_code == 200: return res.json()
     except: pass
     return []
+
+def envoyer_fiche_email(destinataire, texte, lien):
+    headers = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
+    payload = {"from": "Zelia Global <onboarding@resend.dev>", "to": [destinataire], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{texte}</p><br><a href='{lien}'>Lien</a>"}
+    try:
+        res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
+        if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+        else: st.error(f"Erreur d'envoi ({res.status_code})")
+    except: st.error("Échec de connexion au service d'e-mail.")
+
 st.title("🚀 ZELIA GLOBAL — L'Application des Artisans")
 st.write("---")
+
 if not st.session_state.authentifie:
     email_input = st.text_input("🔑 Entrez votre adresse e-mail :", placeholder="artisan@example.com").strip().lower()
     if email_input:
@@ -97,10 +116,12 @@ else:
                 time.sleep(0.5)
                 st.rerun()
             else: st.error("Erreur de mise à jour.")
+
     st.header(f"📬 Opportunités à : {st.session_state.user_ville.upper()}")
     st.write(f"🧑‍🔧 Profil : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
     st.caption(f"🎯 Groupe suivi : `{st.session_state.facebook_group}`")
     st.write("---")
+    
     leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
     if not leads_bruts:
         st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
@@ -110,7 +131,7 @@ else:
         maintenant = datetime.datetime.utcnow()
         for client in leads_bruts:
             try:
-                date_str = client.get("created_at", "").split("+")[0]
+                date_str = client.get("created_at", "").split("+")
                 date_client = datetime.datetime.fromisoformat(date_str)
                 diff_h = (maintenant - date_client).total_seconds() / 3600
                 if choix_temps == "⏱️ Maintenant (<2h)" and diff_h <= 2: leads_filtres.append(client)
@@ -118,6 +139,7 @@ else:
                 elif choix_temps == "📅 Récent (<24h)" and diff_h <= 24: leads_filtres.append(client)
                 elif choix_temps == "📜 Tout (3 jours)": leads_filtres.append(client)
             except: leads_filtres.append(client)
+            
         if not leads_filtres:
             st.info("🔎 Aucun chantier dans cette tranche.")
         else:
@@ -133,13 +155,9 @@ else:
                     if num_client: st.link_button("🟢 WhatsApp Direct", f"https://wa.me{num_client}?text={urllib.parse.quote(pitch)}", use_container_width=True)
                     else: st.link_button("➡️ Ouvrir le site pour répondre", lien_brut, use_container_width=True)
                     st.write("")
-                    if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
-                        headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
-                        payload_resend = {"from": "Zelia Global <onboarding@resend.dev>", "to": [st.session_state.user_email], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{client.get('texte', '')}</p><br><a href='{lien_brut}'>Lien</a>"}
-                        try:
-                            res = requests.post("https://resend.com", json=payload_resend, headers=headers_resend, timeout=10)
-                            if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
-                            else: st.error(f"Erreur d'envoi ({res.status_code})")
-                        except: st.error("Échec de connexion au service d'e-mail.")
+                    if st.button("📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
+                        envoyer_fiche_email(st.session_state.user_email, client.get('texte', ''), lien_brut)
+
     st.write("---")
     if st.button("🚪 Se déconnecter", use_container_width=True):
+        st.session_state.authentifie = False
