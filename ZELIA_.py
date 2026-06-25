@@ -171,4 +171,3 @@ else:
                     st.write("")
                     
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
-                     headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
