@@ -1,9 +1,5 @@
 import streamlit as st
-import time
-import requests
-import urllib.parse
-import os
-import datetime
+import time, requests, urllib.parse, os, datetime
 
 # ==========================================
 # 1. CONFIGURATION INTERFACE & ACCÈS SÉCURISÉS
@@ -13,7 +9,6 @@ st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
 SUPABASE_URL = "https://qjfipgzuwkprfowgbimt.supabase.co"
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1d2twcmZvd2diaW10Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDc2MDI0OSwiZXhwIjoyMDk2MzM2MjQ5fQ.zkDmslMSHuPtS2mJgC4qwWca5cq8IZUQMz6p6ecpTNA")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "re_7fidYWed_3hLMv1XeTBQ3urCAr9SQoHCz")
-PADDLE_API_KEY = os.environ.get("PADDLE_API_KEY", "pdl_live_apikey_01ktezxq12q0j88mtc9ven94xz_QPM2hzX6pBWRDRarmvTS9W_A0Y")
 
 if "authentifie" not in st.session_state: st.session_state.authentifie = False
 if "user_email" not in st.session_state: st.session_state.user_email = ""
@@ -21,19 +16,11 @@ if "user_metier" not in st.session_state: st.session_state.user_metier = "plombi
 if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "facebook_group" not in st.session_state: st.session_state.facebook_group = ""
 
-# ==========================================
-# FONCTION LOGIQUE : FORMATEUR DE TEXTE EN URL FB
-# ==========================================
 def formater_nom_groupe_en_url(nom_ou_lien):
     texte_propre = nom_ou_lien.strip()
-    if not texte_propre:
-        return ""
-    # Si l'artisan a mis un vrai lien complet, on le garde
-    if "facebook.com" in texte_propre.lower():
-        return texte_propre
-    # S'il a écrit du texte brut (ex: Entraide Paris), on l'encode pour la recherche Facebook
-    texte_encode = urllib.parse.quote(texte_propre)
-    return f"https://facebook.com{texte_encode}"
+    if not texte_propre: return ""
+    if "facebook.com" in texte_propre.lower(): return texte_propre
+    return f"https://facebook.com{urllib.parse.quote(texte_propre)}"
 
 # ==========================================
 # 2. FONCTIONS DE PROGRAMMATION DATABASE
@@ -43,26 +30,14 @@ def verifier_si_utilisateur_existe(email):
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            donnees = res.json()
-            if len(donnees) > 0:
-                return donnees[0]
-    except:
-        pass
+        if res.status_code == 200 and len(res.json()) > 0: return res.json()[0]
+    except: pass
     return None
     
 def inscrire_nouvel_artisan(email, metier, ville, groupe_fb):
     url = f"{SUPABASE_URL}/rest/v1/utilisateurs"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
-    
-    url_groupe_formate = formater_nom_groupe_en_url(groupe_fb)
-    
-    payload = [{
-        "email": email.lower(), 
-        "metier": metier.lower(), 
-        "ville": ville.lower(),
-        "facebook_group_url": url_groupe_formate
-    }]
+    payload = [{"email": email.lower(), "metier": metier.lower(), "ville": ville.lower(), "facebook_group_url": formater_nom_groupe_en_url(groupe_fb)}]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
         if res.status_code in: return True
@@ -72,9 +47,7 @@ def inscrire_nouvel_artisan(email, metier, ville, groupe_fb):
 def mettre_a_jour_groupe_artisan(email, nouveau_groupe):
     url = f"{SUPABASE_URL}/rest/v1/utilisateurs?email=eq.{email.lower()}"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"}
-    
-    url_groupe_formate = formater_nom_groupe_en_url(nouveau_groupe)
-    payload = {"facebook_group_url": url_groupe_formate}
+    payload = {"facebook_group_url": formater_nom_groupe_en_url(nouveau_groupe)}
     try:
         res = requests.patch(url, json=payload, headers=headers, timeout=5)
         if res.status_code in: return True
@@ -83,7 +56,6 @@ def mettre_a_jour_groupe_artisan(email, nouveau_groupe):
 
 def extraire_leads_strict(metier, ville):
     il_y_a_3_jours = (datetime.datetime.utcnow() - datetime.timedelta(hours=72)).isoformat()
-    # Lit depuis 'chantiers' qui reçoit le flux nettoyé par FastAPI
     url = f"{SUPABASE_URL}/rest/v1/chantiers?metier=eq.{metier.lower()}&ville=in.({ville.lower()},global)&created_at=gte.{il_y_a_3_jours}&order=id.desc&limit=250"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
@@ -116,21 +88,18 @@ if not st.session_state.authentifie:
             with st.form("form_inscription"):
                 choix_metier = st.selectbox("Métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
                 choix_ville = st.text_input("Ville d'intervention :", placeholder="paris, london, marseille...").strip().lower()
-                choix_groupe = st.text_input("📢 Groupe Facebook à scanner (Nom ou Lien) :", placeholder="Ex: Entraide Paris ou Voisins Lyon").strip()
-                
+                choix_groupe = st.text_input("📢 Groupe Facebook à scanner (Nom ou Lien) :", placeholder="Ex: Entraide Paris").strip()
                 if st.form_submit_button("🚀 Créer mon compte"):
                     if choix_ville and choix_groupe:
                         if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville, choix_groupe):
-                            st.session_state.user_email = email_input
-                            st.session_state.user_metier = choix_metier
-                            st.session_state.user_ville = choix_ville
+                            st.session_state.user_email, st.session_state.user_metier, st.session_state.user_ville = email_input, choix_metier, choix_ville
                             st.session_state.facebook_group = formater_nom_groupe_en_url(choix_groupe)
                             st.session_state.authentifie = True
                             st.success("Compte validé !")
                             time.sleep(1)
                             st.rerun()
-                        else: st.error("Erreur de connexion base de données.")
-                    else: st.error("Veuillez indiquer votre ville et le nom d'un groupe Facebook.")
+                        else: st.error("Erreur base de données.")
+                    else: st.error("Veuillez remplir tous les champs.")
 
 # ==========================================
 # 4. LE TABLEAU DE BORD ET FILTRES DE TEMPS
@@ -138,33 +107,29 @@ if not st.session_state.authentifie:
 else:
     with st.sidebar:
         st.subheader("⚙️ Configuration Radar")
-        nouveau_nom_groupe = st.text_input("Modifier le groupe ciblé :", value=st.session_state.facebook_group, placeholder="Entrez un nom ou un lien").strip()
+        nouveau_nom_groupe = st.text_input("Modifier le groupe ciblé :", value=st.session_state.facebook_group).strip()
         if st.button("💾 Mettre à jour mon groupe", use_container_width=True):
             if mettre_a_jour_groupe_artisan(st.session_state.user_email, nouveau_nom_groupe):
                 st.session_state.facebook_group = formater_nom_groupe_en_url(nouveau_nom_groupe)
                 st.success("Configuration enregistrée !")
                 time.sleep(0.5)
                 st.rerun()
-            else:
-                st.error("Erreur de mise à jour.")
+            else: st.error("Erreur de mise à jour.")
 
     st.header(f"📬 Opportunités à : {st.session_state.user_ville.upper()}")
     st.write(f"🧑‍🔧 Profil : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
-    st.caption(f"🎯 Cible actuelle du scanneur : `{st.session_state.facebook_group}`")
+    st.caption(f"🎯 Groupe suivi : `{st.session_state.facebook_group}`")
     st.write("---")
     
     leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
     if leads_bruts:
-        choix_temps = st.radio("⏳ Tranche horaire des urgences :", ["⏱️ Maintenant (<2h)", "🚀 Aujourd'hui (<8h)", "📅 Récent (<24h)", "📜 Tout (3 jours)"], horizontal=True)
-        st.write("---")
-        
+        choix_temps = st.radio("⏳ Tranche horaire :", ["⏱️ Maintenant (<2h)", "🚀 Aujourd'hui (<8h)", "📅 Récent (<24h)", "📜 Tout (3 jours)"], horizontal=True)
         leads_filtres = []
         maintenant = datetime.datetime.utcnow()
         
         for client in leads_bruts:
             try:
-                date_str = client.get("created_at", "").split("+")
-                date_client = datetime.datetime.fromisoformat(date_str[0])
+                date_client = datetime.datetime.fromisoformat(client.get("created_at", "").split("+")[0])
                 diff_h = (maintenant - date_client).total_seconds() / 3600
                 if choix_temps == "⏱️ Maintenant (<2h)" and diff_h <= 2: leads_filtres.append(client)
                 elif choix_temps == "🚀 Aujourd'hui (<8h)" and diff_h <= 8: leads_filtres.append(client)
@@ -173,7 +138,7 @@ else:
             except: leads_filtres.append(client)
             
         if leads_filtres:
-            st.toast(f"🔔 {len(leads_filtres)} chantiers qualifiés affichés !")
+            st.toast(f"🔔 {len(leads_filtres)} urgences affichées !")
             for idx, client in enumerate(leads_filtres):
                 with st.container(border=True):
                     st.markdown("### 📍 Particulier Identifié (Sniper Engine)")
@@ -181,6 +146,40 @@ else:
                     pitch = f"Bonjour, je vois votre demande pour un {st.session_state.user_metier} à {st.session_state.user_ville.upper()}. Disponible immédiatement !"
                     st.text_area("💡 Message pré-rédigé :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
                     
-                    lien_brut = client.get("lien", "https://google.com")
+                    lien_brut = client.get("lien", "https://facebook.com")
                     num_client = client.get("telephone", "")
                     if num_client:
+                        st.link_button("🟢 WhatsApp Direct", f"https://wa.me{num_client}?text={urllib.parse.quote(pitch)}", use_container_width=True)
+                    else:
+                        st.link_button("➡️ Ouvrir le site pour répondre", lien_brut, use_container_width=True)
+                    
+                    if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
+                        headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
+                        payload_resend = {"from": "Zelia Global <onboarding@resend.dev>", "to": [st.session_state.user_email], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{client.get('texte')}</p><br><a href='{lien_brut}'>Lien</a>"}
+                        try:
+                            res = requests.post("https://resend.com", json=payload_resend, headers=headers_resend, timeout=10)
+                            if res.status_code in: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+      else:
+                                st.error(f"Erreur serveur Resend ({res.status_code})")
+                        except: 
+                            st.error("Connexion au serveur de messagerie échouée.")
+        else: 
+            st.info("🔎 Aucun chantier dans cette tranche. Élargissez le filtre temporel.")
+    else: 
+        st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
+
+    st.write("---")
+    if st.button("🚪 Se déconnecter", use_container_width=True):
+        st.session_state.authentifie = False
+        st.session_state.user_email = ""
+        st.rerun()
+        
+# ==========================================
+# 5. PÔLE SUPPORT CLIENTS EN DIRECT
+# ==========================================
+st.write("---")
+st.markdown("### 🛠️ Assistance Technique")
+c1, c2 = st.columns(2)
+with c1: st.link_button("💬 Support WhatsApp Direct", "https://wa.me", use_container_width=True)
+with c2: st.link_button("📧 Support E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
+Utilisez le code                             
