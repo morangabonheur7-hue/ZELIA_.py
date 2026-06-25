@@ -33,7 +33,7 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0: 
-                return donnees[0]  # ✨ REFIXÉ ICI : On extrait le premier élément de la liste
+                return donnees[0]  # ✨ SÉCURISÉ : On extrait strictement le premier utilisateur du tableau
     except: pass
     return None
     
@@ -91,7 +91,8 @@ if not st.session_state.authentifie:
             with st.form("form_inscription"):
                 choix_metier = st.selectbox("Métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
                 choix_ville = st.text_input("Ville d'intervention :", placeholder="paris, london...").strip().lower()
-                choix_groupe = st.text_input("📢 Groupe Facebook à scanner (Nom ou Lien) :", placeholder="Ex: Entraide Paris").strip()
+                # 🛠️ EMPLACEMENT 1 : Pour les nouveaux utilisateurs
+                choix_groupe = st.text_input("📢 Groupe Facebook à cibler (Nom ou Lien) :", placeholder="Ex: Entraide Paris").strip()
                 if st.form_submit_button("🚀 Créer mon compte"):
                     if choix_ville and choix_groupe:
                         if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville, choix_groupe):
@@ -110,6 +111,7 @@ if not st.session_state.authentifie:
 # 4. LE TABLEAU DE BORD ET FILTRES DE TEMPS
 # ==========================================
 else:
+    # 🛠️ EMPLACEMENT 2 : Barre latérale gauche (Sidebar) pour modifier le groupe n'importe quand
     with st.sidebar:
         st.subheader("⚙️ Configuration Radar")
         nouveau_nom_groupe = st.text_input("Modifier le groupe ciblé :", value=st.session_state.facebook_group).strip()
@@ -137,7 +139,7 @@ else:
         for client in leads_bruts:
             try:
                 date_str = client.get("created_at", "").split("+")
-                date_client = datetime.datetime.fromisoformat(date_str)
+                date_client = datetime.datetime.fromisoformat(date_str[0])
                 diff_h = (maintenant - date_client).total_seconds() / 3600
                 if choix_temps == "⏱️ Maintenant (<2h)" and diff_h <= 2: leads_filtres.append(client)
                 elif choix_temps == "🚀 Aujourd'hui (<8h)" and diff_h <= 8: leads_filtres.append(client)
@@ -166,4 +168,37 @@ else:
                     st.write("")
                     
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
-                        headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
+                 headers_resend = {
+    "Authorization": f"Bearer {RESEND_API_KEY}",
+    "Content-Type": "application/json"
+}
+
+payload_resend = {
+    "from": "Zelia Global <onboarding@resend.dev>",
+    "to": [st.session_state.user_email],
+    "subject": "🚨 NOUVEAU CHANTIER",
+    "html": f"{client.get('texte', '')}Lien"
+}
+
+try:
+    res = requests.post(
+        "resend.com",
+        json=payload_resend,
+        headers=headers_resend,
+        timeout=10
+    )
+
+    if res.status_code == 200 or res.status_code == 201:
+        st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+    else:
+        st.error(f"Erreur d'envoi ({res.status_code})")
+
+except:
+    st.error("Échec de connexion au service d'e-mail.")
+
+st.write("---")
+
+if st.button("🚪 Se déconnecter", use_container_width=True):
+    st.session_state.authentifie = False
+    st.session_state.user_email = ""
+    st.rerun()
