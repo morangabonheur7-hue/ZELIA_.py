@@ -30,7 +30,7 @@ def verifier_si_utilisateur_existe(email):
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200 and len(res.json()) > 0: return res.json()[0]
+        if res.status_code == 200 and len(res.json()) > 0: return res.json()
     except: pass
     return None
     
@@ -122,7 +122,9 @@ else:
     st.write("---")
     
     leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
-    if leads_bruts:
+    if not leads_bruts:
+        st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
+    else:
         choix_temps = st.radio("⏳ Tranche horaire :", ["⏱️ Maintenant (<2h)", "🚀 Aujourd'hui (<8h)", "📅 Récent (<24h)", "📜 Tout (3 jours)"], horizontal=True)
         leads_filtres = []
         maintenant = datetime.datetime.utcnow()
@@ -130,7 +132,7 @@ else:
         for client in leads_bruts:
             try:
                 date_str = client.get("created_at", "").split("+")
-                date_client = datetime.datetime.fromisoformat(date_str[0])
+                date_client = datetime.datetime.fromisoformat(date_str)
                 diff_h = (maintenant - date_client).total_seconds() / 3600
                 if choix_temps == "⏱️ Maintenant (<2h)" and diff_h <= 2: leads_filtres.append(client)
                 elif choix_temps == "🚀 Aujourd'hui (<8h)" and diff_h <= 8: leads_filtres.append(client)
@@ -138,9 +140,12 @@ else:
                 elif choix_temps == "📜 Tout (3 jours)": leads_filtres.append(client)
             except: leads_filtres.append(client)
             
-        if leads_filtres:
+        if not leads_filtres:
+            st.info("🔎 Aucun chantier dans cette tranche.")
+        else:
             st.toast(f"🔔 {len(leads_filtres)} urgences affichées !")
             for idx, client in enumerate(leads_filtres):
+                # 📦 Début du conteneur gris (border=True)
                 with st.container(border=True):
                     st.markdown("### 📍 Particulier Identifié (Sniper Engine)")
                     st.write(client.get("texte", "Pas de détails."))
@@ -154,49 +159,8 @@ else:
                     else:
                         st.link_button("➡️ Ouvrir le site pour répondre", lien_brut, use_container_width=True)
                     
+                    st.write("") # Petit espace esthétique
+                    
+                    # 🎯 TOUT LE BLOC DE L'E-MAIL EST BIEN À L'INTÉRIEUR DU CONTENEUR DE A À Z
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
                         headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
-                        payload_resend = {"from": "Zelia Global <onboarding@resend.dev>", "to": [st.session_state.user_email], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{client.get('texte', '')}</p><br><a href='{lien_brut}'>Lien</a>"}
-                        try:
-                            res = requests.post("https://resend.com", json=payload_resend, headers=headers_resend, timeout=10)
-                            if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
-                     else:
-    st.error(f"Erreur d'envoi ({res.status_code})")
-except:
-    st.error("Échec de connexion au service d'e-mail.")
-
-else:
-    st.info("🔎 Aucun chantier dans cette tranche.")
-
-else:
-    st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
-
-st.write("---")
-
-if st.button("🚪 Se déconnecter", use_container_width=True):
-    st.session_state.authentifie = False
-    st.session_state.user_email = ""
-    st.rerun()
-
-# ==========================================
-# 5. PÔLE SUPPORT CLIENTS EN DIRECT
-# ==========================================
-
-st.write("---")
-st.markdown("### 🛠️ Assistance Technique")
-
-c1, c2 = st.columns(2)
-
-with c1:
-    st.link_button(
-        "💬 Support WhatsApp Direct",
-        "https://wa.me/",
-        use_container_width=True
-    )
-
-with c2:
-    st.link_button(
-        "📧 Support E-mail",
-        "mailto:support.zelia@gmail.com",
-        use_container_width=True
-)          
