@@ -30,8 +30,10 @@ def verifier_si_utilisateur_existe(email):
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200 and len(res.json()) > 0:
-            return res.json()[0]
+        if res.status_code == 200:
+            donnees = res.json()
+            if len(donnees) > 0: 
+                return donnees[0] # ✨ SOLUTION : On extrait strictement le premier utilisateur (Index 0)
     except: pass
     return None
     
@@ -135,7 +137,7 @@ else:
         for client in leads_bruts:
             try:
                 date_str = client.get("created_at", "").split("+")
-                date_client = datetime.datetime.fromisoformat(date_str[0])
+                date_client = datetime.datetime.fromisoformat(date_str)
                 diff_h = (maintenant - date_client).total_seconds() / 3600
                 if choix_temps == "⏱️ Maintenant (<2h)" and diff_h <= 2: leads_filtres.append(client)
                 elif choix_temps == "🚀 Aujourd'hui (<8h)" and diff_h <= 8: leads_filtres.append(client)
@@ -165,4 +167,3 @@ else:
                     
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
                         headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
-                        payload_resend = {"from": "Zelia Global <onboarding@resend.dev>", "to": [st.session_state.user_email], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{client.get('texte', '')}</p><br><a href='{lien_brut}'>Lien</a>"}
