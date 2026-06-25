@@ -17,10 +17,10 @@ if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "facebook_group" not in st.session_state: st.session_state.facebook_group = ""
 
 def formater_nom_groupe_en_url(nom_ou_lien):
-    texte_propre = nom_ou_lien.strip()
-    if not texte_propre: return ""
-    if "facebook.com" in texte_propre.lower(): return texte_propre
-    return f"https://facebook.com{urllib.parse.quote(texte_propre)}"
+    txt = nom_ou_lien.strip()
+    if not txt: return ""
+    if "facebook.com" in txt.lower(): return txt
+    return f"https://facebook.com{urllib.parse.quote(txt)}"
 
 # ==========================================
 # 2. FONCTIONS DE PROGRAMMATION DATABASE
@@ -30,9 +30,7 @@ def verifier_si_utilisateur_existe(email):
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            donnees = res.json()
-            if len(donnees) > 0: return donnees[0]
+        if res.status_code == 200 and len(res.json()) > 0: return res.json()[0]
     except: pass
     return None
     
@@ -42,8 +40,7 @@ def inscrire_nouvel_artisan(email, metier, ville, groupe_fb):
     payload = [{"email": email.lower(), "metier": metier.lower(), "ville": ville.lower(), "facebook_group_url": formater_nom_groupe_en_url(groupe_fb)}]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 200: return True
-        if res.status_code == 201: return True
+        if res.status_code == 200 or res.status_code == 201: return True
     except: pass
     return False
 
@@ -53,14 +50,12 @@ def mettre_a_jour_groupe_artisan(email, nouveau_groupe):
     payload = {"facebook_group_url": formater_nom_groupe_en_url(nouveau_groupe)}
     try:
         res = requests.patch(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 200: return True
-        if res.status_code == 204: return True
+        if res.status_code == 200 or res.status_code == 204: return True
     except: pass
     return False
 
 def extraire_leads_strict(metier, ville):
     il_y_a_3_jours = (datetime.datetime.utcnow() - datetime.timedelta(hours=72)).isoformat()
-    # Utilisation stricte et exclusive de votre table 'leads'
     url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville.lower()},global)&created_at=gte.{il_y_a_3_jours}&order=id.desc&limit=250"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
@@ -92,20 +87,18 @@ if not st.session_state.authentifie:
             st.info("🆕 Nouveau ? Remplissez vos informations de zone :")
             with st.form("form_inscription"):
                 choix_metier = st.selectbox("Métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
-                choix_ville = st.text_input("Ville d'intervention :", placeholder="paris, london, marseille...").strip().lower()
+                choix_ville = st.text_input("Ville d'intervention :", placeholder="paris, london...").strip().lower()
                 choix_groupe = st.text_input("📢 Groupe Facebook à scanner (Nom ou Lien) :", placeholder="Ex: Entraide Paris").strip()
                 if st.form_submit_button("🚀 Créer mon compte"):
                     if choix_ville and choix_groupe:
                         if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville, choix_groupe):
-                            st.session_state.user_email = email_input
-                            st.session_state.user_metier = choix_metier
-                            st.session_state.user_ville = choix_ville
+                            st.session_state.user_email, st.session_state.user_metier, st.session_state.user_ville = email_input, choix_metier, choix_ville
                             st.session_state.facebook_group = formater_nom_groupe_en_url(choix_groupe)
                             st.session_state.authentifie = True
                             st.success("Compte validé !")
                             time.sleep(1)
                             st.rerun()
-                        else: st.error("Erreur de communication avec la base de données.")
+                        else: st.error("Erreur de communication base de données.")
                     else: st.error("Veuillez remplir tous les champs.")
 
 # ==========================================
@@ -161,26 +154,25 @@ else:
                     else:
                         st.link_button("➡️ Ouvrir le site pour répondre", lien_brut, use_container_width=True)
                     
-                                        if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
+                    if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
                         headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
                         payload_resend = {"from": "Zelia Global <onboarding@resend.dev>", "to": [st.session_state.user_email], "subject": "🚨 NOUVEAU CHANTIER", "html": f"<p>{client.get('texte', '')}</p><br><a href='{lien_brut}'>Lien</a>"}
                         try:
                             res = requests.post("https://resend.com", json=payload_resend, headers=headers_resend, timeout=10)
-                            if res.status_code == 200 or res.status_code == 201:
-                                st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
-                            else:
-                                st.error(f"Erreur d'envoi ({res.status_code})")
-                        except Exception as e:
-                            st.error("Échec de connexion au service d'e-mail.")
-                    else:
-                        st.error(f"Erreur d'envoi ({res.status_code})")
-                        except:
-                        st.error("Échec de connexion au service d'e-mail.")
-                    else:
-                        st.info("🔎 Aucun chantier dans cette tranche.")
-        else:
-st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
+                            if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+                     else:
+    st.error(f"Erreur d'envoi ({res.status_code})")
+except:
+    st.error("Échec de connexion au service d'e-mail.")
+
+else:
+    st.info("🔎 Aucun chantier dans cette tranche.")
+
+else:
+    st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
+
 st.write("---")
+
 if st.button("🚪 Se déconnecter", use_container_width=True):
     st.session_state.authentifie = False
     st.session_state.user_email = ""
@@ -207,4 +199,4 @@ with c2:
         "📧 Support E-mail",
         "mailto:support.zelia@gmail.com",
         use_container_width=True
-)
+)          
