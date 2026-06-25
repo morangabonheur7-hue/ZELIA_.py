@@ -161,21 +161,16 @@ else:
                         try:
                             res = requests.post("https://resend.com", json=payload_resend, headers=headers_resend, timeout=10)
                     if res.status_code in:
-    st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
-else:
-    st.error(f"Erreur d'envoi ({res.status_code})")
-
-except:
-    st.error("Échec de connexion au service d'e-mail.")
-
-else:
-    st.info("🔎 Aucun chantier dans cette tranche.")
-
-else:
-    st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
-
+                        st.success("🎯 Envoyé ! Vérifiez vos e-mails.") 
+                    else:
+                        st.error(f"Erreur d'envoi ({res.status_code})")
+                        except:
+                        st.error("Échec de connexion au service d'e-mail.")
+                    else:
+                        st.info("🔎 Aucun chantier dans cette tranche.")
+        else:
+st.warning("🔎 Aucun chantier trouvé. Le robot scanne le web en continu.")
 st.write("---")
-
 if st.button("🚪 Se déconnecter", use_container_width=True):
     st.session_state.authentifie = False
     st.session_state.user_email = ""
@@ -202,4 +197,4 @@ with c2:
         "📧 Support E-mail",
         "mailto:support.zelia@gmail.com",
         use_container_width=True
-            )
+)
