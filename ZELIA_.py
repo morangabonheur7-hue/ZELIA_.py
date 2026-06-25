@@ -168,37 +168,3 @@ else:
                     st.write("")
                     
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
-                 headers_resend = {
-    "Authorization": f"Bearer {RESEND_API_KEY}",
-    "Content-Type": "application/json"
-}
-
-payload_resend = {
-    "from": "Zelia Global <onboarding@resend.dev>",
-    "to": [st.session_state.user_email],
-    "subject": "🚨 NOUVEAU CHANTIER",
-    "html": f"{client.get('texte', '')}Lien"
-}
-
-try:
-    res = requests.post(
-        "resend.com",
-        json=payload_resend,
-        headers=headers_resend,
-        timeout=10
-    )
-
-    if res.status_code == 200 or res.status_code == 201:
-        st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
-    else:
-        st.error(f"Erreur d'envoi ({res.status_code})")
-
-except:
-    st.error("Échec de connexion au service d'e-mail.")
-
-st.write("---")
-
-if st.button("🚪 Se déconnecter", use_container_width=True):
-    st.session_state.authentifie = False
-    st.session_state.user_email = ""
-    st.rerun()
