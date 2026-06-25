@@ -30,7 +30,10 @@ def verifier_si_utilisateur_existe(email):
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200 and len(res.json()) > 0: return res.json()
+        if res.status_code == 200:
+            donnees = res.json()
+            if len(donnees) > 0: 
+                return donnees[0]  # ✨ REFIXÉ ICI : On extrait le premier élément de la liste
     except: pass
     return None
     
@@ -92,7 +95,9 @@ if not st.session_state.authentifie:
                 if st.form_submit_button("🚀 Créer mon compte"):
                     if choix_ville and choix_groupe:
                         if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville, choix_groupe):
-                            st.session_state.user_email, st.session_state.user_metier, st.session_state.user_ville = email_input, choix_metier, choix_ville
+                            st.session_state.user_email = email_input
+                            st.session_state.user_metier = choix_metier
+                            st.session_state.user_ville = choix_ville
                             st.session_state.facebook_group = formater_nom_groupe_en_url(choix_groupe)
                             st.session_state.authentifie = True
                             st.success("Compte validé !")
@@ -145,7 +150,6 @@ else:
         else:
             st.toast(f"🔔 {len(leads_filtres)} urgences affichées !")
             for idx, client in enumerate(leads_filtres):
-                # 📦 Début du conteneur gris (border=True)
                 with st.container(border=True):
                     st.markdown("### 📍 Particulier Identifié (Sniper Engine)")
                     st.write(client.get("texte", "Pas de détails."))
@@ -159,8 +163,7 @@ else:
                     else:
                         st.link_button("➡️ Ouvrir le site pour répondre", lien_brut, use_container_width=True)
                     
-                    st.write("") # Petit espace esthétique
+                    st.write("")
                     
-                    # 🎯 TOUT LE BLOC DE L'E-MAIL EST BIEN À L'INTÉRIEUR DU CONTENEUR DE A À Z
                     if st.button(f"📧 Recevoir la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
                         headers_resend = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
