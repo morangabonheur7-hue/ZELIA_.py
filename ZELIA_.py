@@ -30,7 +30,9 @@ def verifier_si_utilisateur_existe(email):
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200 and len(res.json()) > 0: return res.json()[0]
+        if res.status_code == 200:
+            donnees = res.json()
+            if len(donnees) > 0: return donnees[0]
     except: pass
     return None
     
@@ -40,7 +42,8 @@ def inscrire_nouvel_artisan(email, metier, ville, groupe_fb):
     payload = [{"email": email.lower(), "metier": metier.lower(), "ville": ville.lower(), "facebook_group_url": formater_nom_groupe_en_url(groupe_fb)}]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code in: return True
+        if res.status_code == 200: return True
+        if res.status_code == 201: return True
     except: pass
     return False
 
@@ -50,13 +53,14 @@ def mettre_a_jour_groupe_artisan(email, nouveau_groupe):
     payload = {"facebook_group_url": formater_nom_groupe_en_url(nouveau_groupe)}
     try:
         res = requests.patch(url, json=payload, headers=headers, timeout=5)
-        if res.status_code in: return True
+        if res.status_code == 200: return True
+        if res.status_code == 204: return True
     except: pass
     return False
 
 def extraire_leads_strict(metier, ville):
     il_y_a_3_jours = (datetime.datetime.utcnow() - datetime.timedelta(hours=72)).isoformat()
-    # Utilisation stricte de votre table 'leads' d'origine
+    # Utilisation stricte et exclusive de votre table 'leads'
     url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville.lower()},global)&created_at=gte.{il_y_a_3_jours}&order=id.desc&limit=250"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
@@ -93,7 +97,9 @@ if not st.session_state.authentifie:
                 if st.form_submit_button("🚀 Créer mon compte"):
                     if choix_ville and choix_groupe:
                         if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville, choix_groupe):
-                            st.session_state.user_email, st.session_state.user_metier, st.session_state.user_ville = email_input, choix_metier, choix_ville
+                            st.session_state.user_email = email_input
+                            st.session_state.user_metier = choix_metier
+                            st.session_state.user_ville = choix_ville
                             st.session_state.facebook_group = formater_nom_groupe_en_url(choix_groupe)
                             st.session_state.authentifie = True
                             st.success("Compte validé !")
@@ -130,8 +136,8 @@ else:
         
         for client in leads_bruts:
             try:
-                date_str = client.get("created_at", "").split("+")[0]
-                date_client = datetime.datetime.fromisoformat(date_str)
+                date_str = client.get("created_at", "").split("+")
+                date_client = datetime.datetime.fromisoformat(date_str[0])
                 diff_h = (maintenant - date_client).total_seconds() / 3600
                 if choix_temps == "⏱️ Maintenant (<2h)" and diff_h <= 2: leads_filtres.append(client)
                 elif choix_temps == "🚀 Aujourd'hui (<8h)" and diff_h <= 8: leads_filtres.append(client)
