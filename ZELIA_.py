@@ -6,6 +6,7 @@ st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
 SUPABASE_URL = "https://qjfipgzuwkprfowgbimt.supabase.co"
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1d2twcmZvd2diaW10Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDc2MDI0OSwiZXhwIjoyMDk2MzM2MjQ5fQ.zkDmslMSHuPtS2mJgC4qwWca5cq8IZUQMz6p6ecpTNA")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "re_7fidYWed_3hLMv1XeTBQ3urCAr9SQoHCz")
+PADDLE_API_KEY = os.environ.get("PADDLE_API_KEY")
 
 if "authentifie" not in st.session_state: st.session_state.authentifie = False
 if "user_email" not in st.session_state: st.session_state.user_email = ""
