@@ -27,8 +27,9 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0:
-                u = donnees[0]
-                if "statut_abonnement" not in u or u["statut_abonnement"] is None: u["statut_abonnement"] = "inactif"
+                u = donnees[0] # Correction chirurgicale de l'extraction de liste
+                if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
+                    u["statut_abonnement"] = "inactif"
                 return u
     except: pass
     return None
@@ -128,7 +129,7 @@ if not st.session_state.authentifie:
                     st.session_state.user_ville = utilisateur['ville']
                     st.session_state.user_statut = str(utilisateur['statut_abonnement'])
                     st.session_state.authentifie = True
-                    st.rerun()
+                    st.rerun() # Correction de st.st.
             else:
                 st.info("🆕 Vous n'avez pas encore de compte ? Enregistrez votre zone :")
                 with st.form("form_inscription_artisan"):
@@ -145,7 +146,7 @@ if not st.session_state.authentifie:
                                 st.session_state.authentifie = True
                                 st.success("Compte d'essai créé avec succès !")
                                 time.sleep(1)
-                                st.rerun()
+                                st.rerun() # Correction de st.st.
                             else: st.error("Erreur d'inscription base de données.")
                         else: st.error("Veuillez écrire votre ville d'intervention.")
 
@@ -171,6 +172,3 @@ else:
             st.success(f"🔔 {len(leads_bruts)} demandes d'urgences interceptées !")
             for idx, client in enumerate(leads_bruts):
                 with st.container(border=True):
-                    st.markdown("### 📍 Alerte Client Direct (Zelia Sniper)")
-                    st.write(client.get("texte", "Pas de détails."))
-
