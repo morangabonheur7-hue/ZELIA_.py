@@ -69,7 +69,8 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code in: 
+        if res.status_code == 201
+        
             return True
         else:
             st.error(f"⚠️ Code Erreur Supabase (Chantier) : {res.status_code} - {res.text}")
