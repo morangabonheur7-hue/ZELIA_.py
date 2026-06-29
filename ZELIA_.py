@@ -46,7 +46,8 @@ def inscrire_nouvel_artisan(email, metier, ville):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code in: 
+        if res.status_code == 201:
+        
             return True
         else:
             st.error(f"⚠️ Code Erreur Supabase (Artisan) : {res.status_code} - {res.text}")
