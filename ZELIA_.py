@@ -27,7 +27,7 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0:
-                u = donnees[0] # Correction chirurgicale de l'extraction de liste
+                u = donnees[0] # Extraction correcte du premier utilisateur
                 if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
                     u["statut_abonnement"] = "inactif"
                 return u
@@ -45,7 +45,7 @@ def inscrire_nouvel_artisan(email, metier, ville):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code in: return True
+        if res.status_code == 201 or res.status_code == 200: return True
     except: pass
     return False
 
@@ -63,7 +63,7 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code in: return True
+        if res.status_code == 201 or res.status_code == 200: return True
     except: pass
     return False
 
@@ -82,7 +82,7 @@ def envoyer_fiche_email(destinataire, texte, lien):
     payload = {"from": "Zelia Global <onboarding@resend.dev>", "to": [destinataire], "subject": "🚨 FICHE CHANTIER ZELIA", "html": f"<p>{texte}</p><br><a href='{lien}'>Ouvrir l'application</a>"}
     try:
         res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
-        if res.status_code in: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+        if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
     except: st.error("Échec de connexion au service d'e-mail.")
 
@@ -129,7 +129,7 @@ if not st.session_state.authentifie:
                     st.session_state.user_ville = utilisateur['ville']
                     st.session_state.user_statut = str(utilisateur['statut_abonnement'])
                     st.session_state.authentifie = True
-                    st.rerun() # Correction de st.st.
+                    st.rerun()
             else:
                 st.info("🆕 Vous n'avez pas encore de compte ? Enregistrez votre zone :")
                 with st.form("form_inscription_artisan"):
@@ -146,7 +146,7 @@ if not st.session_state.authentifie:
                                 st.session_state.authentifie = True
                                 st.success("Compte d'essai créé avec succès !")
                                 time.sleep(1)
-                                st.rerun() # Correction de st.st.
+                                st.rerun()
                             else: st.error("Erreur d'inscription base de données.")
                         else: st.error("Veuillez écrire votre ville d'intervention.")
 
@@ -172,3 +172,4 @@ else:
             st.success(f"🔔 {len(leads_bruts)} demandes d'urgences interceptées !")
             for idx, client in enumerate(leads_bruts):
                 with st.container(border=True):
+
