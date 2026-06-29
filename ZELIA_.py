@@ -55,7 +55,7 @@ def inscrire_nouvel_artisan(email, metier, ville):
         st.error(f"❌ Erreur Technique Inscription : {e}")
     return False
 
-def外particulier_deposer_chantier(metier, ville, description, telephone):
+def particulier_deposer_chantier(metier, ville, description, telephone):
     url = f"{SUPABASE_URL}/rest/v1/leads"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
     texte_final = f"🚨 URGENCE PARTICULIER DIRECT :\n📢 {description}"
