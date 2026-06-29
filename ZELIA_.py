@@ -16,7 +16,7 @@ if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
 if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "user_statut" not in st.session_state: st.session_state.user_statut = "inactif"
-
+    
 # ==========================================
 # 2. FONCTIONS DE PROGRAMMATION INTERNE (DATABASE)
 # ==========================================
@@ -46,8 +46,7 @@ def inscrire_nouvel_artisan(email, metier, ville):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201:
-        
+        if res.status_code == 201 or res.status_code == 200:
             return True
         else:
             st.error(f"⚠️ Code Erreur Supabase (Artisan) : {res.status_code} - {res.text}")
@@ -69,8 +68,7 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201
-        
+        if res.status_code == 201 or res.status_code == 200:
             return True
         else:
             st.error(f"⚠️ Code Erreur Supabase (Chantier) : {res.status_code} - {res.text}")
@@ -93,7 +91,7 @@ def envoyer_fiche_email(destinataire, texte, lien):
     payload = {"from": "Zelia Global <onboarding@resend.dev>", "to": [destinataire], "subject": "🚨 FICHE CHANTIER ZELIA", "html": f"<p>{texte}</p><br><a href='{lien}'>Ouvrir l'application</a>"}
     try:
         res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
-        if res.status_code in: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+        if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
     except: st.error("Échec de connexion au service d'e-mail.")
 
@@ -173,6 +171,8 @@ else:
 
     if st.button("🚪 Se déconnecter", use_container_width=True):
         st.session_state.authentifie = False
+        st.session_state.user_email = ""
+        st.session_state.user_statut = "inactif"
         st.rerun()
         
 # ==========================================
@@ -181,6 +181,6 @@ else:
 st.write("---")
 st.markdown("### 🛠️ Assistance Technique Internationale")
 c1, c2 = st.columns(2)
-with c1: st.link_button("💬 Support Client WhatsApp", "https://wa.me242055967601?text=Bonjour%20Support%20Zelia", use_container_width=True)
+with c1: st.link_button("💬 Support Client WhatsApp", "https://wa.me", use_container_width=True)
 with c2: st.link_button("📧 Support Commercial E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
     
