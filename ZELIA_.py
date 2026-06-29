@@ -27,7 +27,7 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0:
-                u = donnees[0] # Extraction correcte du premier utilisateur
+                u = donnees[0]
                 if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
                     u["statut_abonnement"] = "inactif"
                 return u
@@ -144,6 +144,12 @@ if not st.session_state.authentifie:
                                 st.session_state.user_ville = choix_ville
                                 st.session_state.user_statut = "inactif"
                                 st.session_state.authentifie = True
+                                st.rerun()
+                                st.session_state.user_email = email_input
+                                st.session_state.user_metier = choix_metier
+                                st.session_state.user_ville = choix_ville
+                                st.session_state.user_statut = "inactif"
+                                st.session_state.authentifie = True
                                 st.success("Compte d'essai créé avec succès !")
                                 time.sleep(1)
                                 st.rerun()
@@ -172,4 +178,35 @@ else:
             st.success(f"🔔 {len(leads_bruts)} demandes d'urgences interceptées !")
             for idx, client in enumerate(leads_bruts):
                 with st.container(border=True):
+                    st.markdown("### 📍 Alerte Client Direct (Zelia Sniper)")
+                    st.write(client.get("texte", "Pas de détails."))
+                    
+                    pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible immédiatement à {st.session_state.user_ville.upper()} pour votre urgence. Je peux intervenir tout de suite !"
+                    st.text_area("💡 Votre réponse rapide pré-rédigée :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
+                    
+                    num_client = client.get("telephone", "")
+                    if num_client:
+                        st.link_button("🟢 Appeler / WhatsApp Direct", f"https://wa.me{num_client.replace('+', '')}?text={urllib.parse.quote(pitch)}", use_container_width=True)
+                    else:
+                        st.link_button("➡️ Ouvrir la fiche", client.get("lien", "https://facebook.com"), use_container_width=True)
+                    
+                    st.write("")
+                    if st.button("📧 M'envoyer la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
+                        envoyer_fiche_email(st.session_state.user_email, client.get('texte', ''), client.get('lien', 'https://zeliao.streamlit.app'))
 
+    st.write("---")
+    if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
+        st.session_state.authentifie = False
+        st.session_state.user_email = ""
+        st.session_state.user_statut = "inactif"
+        st.rerun()
+
+# ==========================================
+# 5. ASSISTANCE TECHNIQUE & SUPPORT
+# ==========================================
+st.write("---")
+st.markdown("### 🛠️ Assistance Technique Internationale")
+c1, c2 = st.columns(2)
+with c1: st.link_button("💬 Support Client WhatsApp", "https://wa.me242055967601?text=Bonjour%20Support%20Zelia", use_container_width=True)
+with c2: st.link_button("📧 Support Commercial E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
+    
