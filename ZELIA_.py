@@ -6,6 +6,7 @@ import time, requests, urllib.parse, os, datetime
 # ==========================================
 st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
 
+# Modification ici : On s'assure d'avoir l'URL officielle chiffrée
 SUPABASE_URL = "https://qjfipgzuwkprfowgbimt.supabase.co"
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1w2twcmZvd2diaW10Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDc2MDI0OSwiZXhwIjoyMDk2MzM2MjQ5fQ.zkDmslMSHuPtS2mJgC4qwWca5cq8IZUQMz6p6ecpTNA")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "re_7fidYWed_3hLMv1XeTBQ3urCAr9SQoHCz")
@@ -45,11 +46,15 @@ def inscrire_nouvel_artisan(email, metier, ville):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201 or res.status_code == 200: return True
-    except: pass
+        if res.status_code in: 
+            return True
+        else:
+            st.error(f"⚠️ Code Erreur Supabase (Artisan) : {res.status_code} - {res.text}")
+    except Exception as e: 
+        st.error(f"❌ Erreur Technique Inscription : {e}")
     return False
 
-def particulier_deposer_chantier(metier, ville, description, telephone):
+def外particulier_deposer_chantier(metier, ville, description, telephone):
     url = f"{SUPABASE_URL}/rest/v1/leads"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
     texte_final = f"🚨 URGENCE PARTICULIER DIRECT :\n📢 {description}"
@@ -63,8 +68,12 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201 or res.status_code == 200: return True
-    except: pass
+        if res.status_code in: 
+            return True
+        else:
+            st.error(f"⚠️ Code Erreur Supabase (Chantier) : {res.status_code} - {res.text}")
+    except Exception as e: 
+        st.error(f"❌ Erreur Technique Chantier : {e}")
     return False
 
 def extraire_leads_strict(metier, ville):
@@ -82,7 +91,7 @@ def envoyer_fiche_email(destinataire, texte, lien):
     payload = {"from": "Zelia Global <onboarding@resend.dev>", "to": [destinataire], "subject": "🚨 FICHE CHANTIER ZELIA", "html": f"<p>{texte}</p><br><a href='{lien}'>Ouvrir l'application</a>"}
     try:
         res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
-        if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
+        if res.status_code in: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
     except: st.error("Échec de connexion au service d'e-mail.")
 
@@ -102,17 +111,15 @@ if not st.session_state.authentifie:
         
         with st.form("form_particulier", clear_on_submit=True):
             p_metier = st.selectbox("De quel professionnel avez-vous besoin ?", ["plombier", "electricien", "serrurier", "mecanicien"])
-            p_ville = st.text_input("Dans quelle ville vous situez-vous ?", placeholder="Ex: paris, london, bruxelles...").strip().lower()
-            p_phone = st.text_input("Votre numéro de téléphone (WhatsApp de préférence) :", placeholder="Ex: +33612345678").strip()
-            p_desc = st.text_area("Expliquez votre problème en quelques mots :", placeholder="Ex: Fuite d'eau sous mon évier, l'eau coule partout au secours !")
+            p_ville = st.text_input("Dans quelle ville vous situez-vous ?", placeholder="Ex: paris, london...").strip().lower()
+            p_phone = st.text_input("Votre numéro de téléphone :", placeholder="Ex: +33612345678").strip()
+            p_desc = st.text_area("Expliquez votre problème en quelques mots :", placeholder="Fuite d'eau sous mon évier...")
             
             submit_particulier = st.form_submit_button("📢 Envoyer ma demande immédiatement")
             if submit_particulier:
                 if p_ville and p_desc and p_phone:
-                    if particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone):
-                        st.success("✅ Votre urgence a été diffusée ! Les artisans de votre quartier vont vous contacter d'ici quelques minutes.")
-                    else: st.error("Échec de l'envoi de votre demande.")
-                else: st.error("Veuillez remplir toutes les cases pour être contacté.")
+                    particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone)
+                else: st.error("Veuillez remplir toutes les cases.")
                 
     with col_artisan:
         st.header("🔵 Espace Professionnel (Artisan)")
@@ -131,76 +138,41 @@ if not st.session_state.authentifie:
                     st.session_state.authentifie = True
                     st.rerun()
             else:
-                st.info("🆕 Vous n'avez pas encore de compte ? Enregistrez votre zone :")
+                st.info("🆕 Enregistrez votre zone :")
                 with st.form("form_inscription_artisan"):
                     choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
-                    choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london...").strip().lower()
+                    choix_ville = st.text_input("Votre ville d'intervention :", placeholder="paris...").strip().lower()
                     
                     if st.form_submit_button("🚀 Activer mes 12 jours d'essai gratuit"):
                         if choix_ville:
-                            if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville):
-                                st.session_state.user_email = email_input
-                                st.session_state.user_metier = choix_metier
-                                st.session_state.user_ville = choix_ville
-                                st.session_state.user_statut = "inactif"
-                                st.session_state.authentifie = True
-                                st.rerun()
-                                st.session_state.user_email = email_input
-                                st.session_state.user_metier = choix_metier
-                                st.session_state.user_ville = choix_ville
-                                st.session_state.user_statut = "inactif"
-                                st.session_state.authentifie = True
-                                st.success("Compte d'essai créé avec succès !")
-                                time.sleep(1)
-                                st.rerun()
-                            else: st.error("Erreur d'inscription base de données.")
-                        else: st.error("Veuillez écrire votre ville d'intervention.")
+                            inscrire_nouvel_artisan(email_input, choix_metier, choix_ville)
+                        else: st.error("Veuillez écrire votre ville.")
 
-# ==========================================
-# 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ
-# ==========================================
 else:
     st.header(f"📬 Radar de chantiers en direct : {st.session_state.user_ville.upper()}")
     st.write(f"🧑‍🔧 Artisan : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
     st.write("---")
 
     if st.session_state.user_statut != "actif":
-        st.error("🔒 ACCÈS LIMITÉ — Fin de la période d'essai ou Abonnement Requis")
-        st.write("Pour débloquer l'accès instantané aux demandes urgentes des particuliers de votre secteur, veuillez activer votre accès professionnel.")
-        
+        st.error("🔒 ACCÈS LIMITÉ")
         lien_paddle_sandbox = "https://paddle.com"
         st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", lien_paddle_sandbox, use_container_width=True, type="primary")
     else:
         leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
         if not leads_bruts:
-            st.warning("🔎 Aucun chantier direct disponible pour le moment dans votre ville. Le système est en veille permanente.")
+            st.warning("🔎 Aucun chantier disponible pour le moment.")
         else:
-            st.success(f"🔔 {len(leads_bruts)} demandes d'urgences interceptées !")
             for idx, client in enumerate(leads_bruts):
                 with st.container(border=True):
-                    st.markdown("### 📍 Alerte Client Direct (Zelia Sniper)")
                     st.write(client.get("texte", "Pas de détails."))
-                    
-                    pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible immédiatement à {st.session_state.user_ville.upper()} pour votre urgence. Je peux intervenir tout de suite !"
-                    st.text_area("💡 Votre réponse rapide pré-rédigée :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
-                    
                     num_client = client.get("telephone", "")
                     if num_client:
-                        st.link_button("🟢 Appeler / WhatsApp Direct", f"https://wa.me{num_client.replace('+', '')}?text={urllib.parse.quote(pitch)}", use_container_width=True)
-                    else:
-                        st.link_button("➡️ Ouvrir la fiche", client.get("lien", "https://facebook.com"), use_container_width=True)
-                    
-                    st.write("")
-                    if st.button("📧 M'envoyer la fiche par E-mail", key=f"resend_{idx}", use_container_width=True):
-                        envoyer_fiche_email(st.session_state.user_email, client.get('texte', ''), client.get('lien', 'https://zeliao.streamlit.app'))
+                        st.link_button("🟢 Appeler WhatsApp", f"https://wa.me{num_client.replace('+', '')}")
 
-    st.write("---")
-    if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
+    if st.button("🚪 Se déconnecter", use_container_width=True):
         st.session_state.authentifie = False
-        st.session_state.user_email = ""
-        st.session_state.user_statut = "inactif"
         st.rerun()
-
+        
 # ==========================================
 # 5. ASSISTANCE TECHNIQUE & SUPPORT
 # ==========================================
