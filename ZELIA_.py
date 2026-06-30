@@ -16,6 +16,8 @@ if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
 if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "user_statut" not in st.session_state: st.session_state.user_statut = "inactif"
+    st.write(f"🧑‍🔧 Artisan : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
+    st.write("---")
 
 # ==========================================
 # 2. FONCTIONS DE PROGRAMMATION INTERNE (DATABASE)
@@ -28,10 +30,7 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0:
-                u = donnees[0]
-                if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
-                    u["statut_abonnement"] = "inactif"
-                return u
+                return donnees[0]
     except: pass
     return None
 
@@ -119,7 +118,7 @@ if not st.session_state.authentifie:
             if submit_particulier:
                 if p_ville and p_desc and p_phone:
                     particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone)
-                else: st.error("Vevillez remplir toutes les cases.")
+                else: st.error("Veuillez remplir toutes les cases.")
                 
     with col_artisan:
         st.header("🔵 Espace Professionnel (Artisan)")
@@ -172,13 +171,15 @@ else:
                     
                     pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible à {st.session_state.user_ville.upper()} pour votre urgence."
                     st.text_area("💡 Réponse rapide :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
+                    
+                    # 🚀 FIX DE LA PAGE BLANCHE INTERNATIONALE WHATSAPP
                     num_client = client.get("telephone", "").strip()
                     if num_client:
-                        # Nettoyage total du numéro pour le lien international officiel WhatsApp
                         num_propre = "".join(c for c in num_client if c.isdigit())
                         st.link_button("🟢 Appeler / WhatsApp Direct", f"https://whatsapp.com{num_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
-            
-   if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
+
+    st.write("---")
+    if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
         st.session_state.authentifie = False
         st.session_state.user_email = ""
         st.session_state.user_statut = "inactif"
