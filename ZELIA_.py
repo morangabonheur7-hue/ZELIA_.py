@@ -172,13 +172,13 @@ else:
                     
                     pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible à {st.session_state.user_ville.upper()} pour votre urgence."
                     st.text_area("💡 Réponse rapide :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
-                    
-                    num_client = client.get("telephone", "")
+                    num_client = client.get("telephone", "").strip()
                     if num_client:
-                        st.link_button("🟢 Appeler WhatsApp", f"https://wa.me{num_client.replace('+', '')}?text={urllib.parse.quote(pitch)}", use_container_width=True)
-
-    st.write("---")
-    if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
+                        # Nettoyage total du numéro pour le lien international officiel WhatsApp
+                        num_propre = "".join(c for c in num_client if c.isdigit())
+                        st.link_button("🟢 Appeler / WhatsApp Direct", f"https://whatsapp.com{num_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
+            
+   if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
         st.session_state.authentifie = False
         st.session_state.user_email = ""
         st.session_state.user_statut = "inactif"
