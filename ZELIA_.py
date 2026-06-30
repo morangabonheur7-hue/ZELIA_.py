@@ -16,7 +16,7 @@ if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
 if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "user_statut" not in st.session_state: st.session_state.user_statut = "inactif"
-    
+
 # ==========================================
 # 2. FONCTIONS DE PROGRAMMATION INTERNE (DATABASE)
 # ==========================================
@@ -119,7 +119,7 @@ if not st.session_state.authentifie:
             if submit_particulier:
                 if p_ville and p_desc and p_phone:
                     particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone)
-                else: st.error("Veuillez remplir toutes les cases.")
+                else: st.error("Vevillez remplir toutes les cases.")
                 
     with col_artisan:
         st.header("🔵 Espace Professionnel (Artisan)")
@@ -154,27 +154,36 @@ else:
     st.write("---")
 
     if st.session_state.user_statut != "actif":
-        st.error("🔒 ACCÈS LIMITÉ")
-        lien_paddle_sandbox = "https://paddle.com"
-        st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", lien_paddle_sandbox, use_container_width=True, type="primary")
+        st.error("🔒 ACCÈS LIMITÉ — Fin de la période d'essai")
+        st.write("Pour débloquer l'accès aux demandes de votre secteur, veuillez activer votre abonnement Zelia Pro.")
+        
+        msg_activation = urllib.parse.quote(f"Bonjour Bonheur, je souhaite activer mon abonnement Zelia Pro à 29,99€/mois pour mon compte ({st.session_state.user_email}).")
+        st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"https://wa.me{msg_activation}", use_container_width=True, type="primary")
     else:
         leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
         if not leads_bruts:
             st.warning("🔎 Aucun chantier disponible pour le moment.")
         else:
+            st.success(f"🔔 {len(leads_bruts)} demandes d'urgences interceptées !")
             for idx, client in enumerate(leads_bruts):
                 with st.container(border=True):
+                    st.markdown("### 📍 Alerte Client Direct (Zelia Sniper)")
                     st.write(client.get("texte", "Pas de détails."))
+                    
+                    pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible à {st.session_state.user_ville.upper()} pour votre urgence."
+                    st.text_area("💡 Réponse rapide :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
+                    
                     num_client = client.get("telephone", "")
                     if num_client:
-                        st.link_button("🟢 Appeler WhatsApp", f"https://wa.me{num_client.replace('+', '')}")
+                        st.link_button("🟢 Appeler WhatsApp", f"https://wa.me{num_client.replace('+', '')}?text={urllib.parse.quote(pitch)}", use_container_width=True)
 
-    if st.button("🚪 Se déconnecter", use_container_width=True):
+    st.write("---")
+    if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
         st.session_state.authentifie = False
         st.session_state.user_email = ""
         st.session_state.user_statut = "inactif"
         st.rerun()
-        
+
 # ==========================================
 # 5. ASSISTANCE TECHNIQUE & SUPPORT
 # ==========================================
