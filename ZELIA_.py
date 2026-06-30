@@ -16,9 +16,7 @@ if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
 if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "user_statut" not in st.session_state: st.session_state.user_statut = "inactif"
-    st.write(f"🧑‍🔧 Artisan : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
-    st.write("---")
-
+    
 # ==========================================
 # 2. FONCTIONS DE PROGRAMMATION INTERNE (DATABASE)
 # ==========================================
