@@ -16,7 +16,7 @@ if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
 if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
 if "user_statut" not in st.session_state: st.session_state.user_statut = "inactif"
-    
+
 # ==========================================
 # 2. FONCTIONS DE PROGRAMMATION INTERNE (DATABASE)
 # ==========================================
@@ -28,7 +28,10 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0:
-                return donnees[0]
+                u = donnees[0]
+                if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
+                    u["statut_abonnement"] = "inactif"
+                return u
     except: pass
     return None
 
@@ -60,7 +63,7 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
         "ville": ville.lower(),
         "texte": texte_final,
         "telephone": telephone.strip(),
-        "lien": "https://streamlit.app",
+        "lien": "https://zelia-global.com",
         "plateforme": "Zelia Public Direct"
     }]
     try:
@@ -108,15 +111,16 @@ if not st.session_state.authentifie:
         
         with st.form("form_particulier", clear_on_submit=True):
             p_metier = st.selectbox("De quel professionnel avez-vous besoin ?", ["plombier", "electricien", "serrurier", "mecanicien"])
-            p_ville = st.text_input("Dans quelle ville vous situez-vous ?", placeholder="Ex: paris, london...").strip().lower()
-            p_phone = st.text_input("Votre numéro de téléphone :", placeholder="Ex: +33612345678").strip()
-            p_desc = st.text_area("Expliquez votre problème en quelques mots :", placeholder="Fuite d'eau sous mon évier...")
+            p_ville = st.text_input("Dans quelle ville vous situez-vous ?", placeholder="Ex: paris, london, bruxelles...").strip().lower()
+            p_phone = st.text_input("Votre numéro de téléphone (WhatsApp de préférence) :", placeholder="Ex: +33612345678").strip()
+            p_desc = st.text_area("Expliquez votre problème en quelques mots :", placeholder="Ex: Fuite d'eau sous mon évier, l'eau coule partout au secours !")
             
             submit_particulier = st.form_submit_button("📢 Envoyer ma demande immédiatement")
             if submit_particulier:
                 if p_ville and p_desc and p_phone:
-                    particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone)
-                else: st.error("Veuillez remplir toutes les cases.")
+                    if particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone):
+                        st.success("✅ Votre urgence a été diffusée ! Les artisans de votre quartier vont vous contacter d'ici quelques minutes.")
+                else: st.error("Veuillez remplir toutes les cases pour être contacté.")
                 
     with col_artisan:
         st.header("🔵 Espace Professionnel (Artisan)")
@@ -132,34 +136,85 @@ if not st.session_state.authentifie:
                     st.session_state.user_metier = utilisateur['metier']
                     st.session_state.user_ville = utilisateur['ville']
                     st.session_state.user_statut = str(utilisateur['statut_abonnement'])
+                    st.session_state.user_date_creation = str(utilisateur.get('created_at', ''))
                     st.session_state.authentifie = True
                     st.rerun()
             else:
                 st.info("🆕 Enregistrez votre zone :")
                 with st.form("form_inscription_artisan"):
                     choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
-                    choix_ville = st.text_input("Votre ville d'intervention :", placeholder="paris...").strip().lower()
+                    choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london...").strip().lower()
                     
                     if st.form_submit_button("🚀 Activer mes 12 jours d'essai gratuit"):
                         if choix_ville:
-                            inscrire_nouvel_artisan(email_input, choix_metier, choix_ville)
-                        else: st.error("Veuillez écrire votre ville.")
+                            if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville):
+                                double_check = verifier_si_utilisateur_existe(email_input)
+                                if double_check:
+                                    st.session_state.user_email = double_check['email']
+                                    st.session_state.user_metier = double_check['metier']
+                                    st.session_state.user_ville = double_check['ville']
+                                    st.session_state.user_statut = "inactif"
+                                    st.session_state.user_date_creation = str(double_check.get('created_at', ''))
+                                    st.session_state.authentifie = True
+                                    st.success("Compte d'essai créé avec succès !")
+                                    time.sleep(1)
+                                    st.rerun()
+                        else: st.error("Veuillez écrire votre ville d'intervention.")
 
+# ==========================================
+# 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & CALCULATEUR
+# ==========================================
 else:
+    jours_restants = 0
+    essai_valide = False
+    
+    if st.session_state.user_date_creation:
+        try:
+            # Nettoyage et calcul de l'écart de date
+            date_pure_str = st.session_state.user_date_creation.split("T")[0]
+            date_inscription = datetime.datetime.strptime(date_pure_str, "%Y-%m-%d").date()
+            date_aujourdhui = datetime.datetime.utcnow().date()
+            
+            jours_ecoules = (date_aujourdhui - date_inscription).days
+            jours_restants = 12 - jours_ecoules
+            if jours_restants > 0:
+                essai_valide = True
+        except:
+            essai_valide = False
+
     st.header(f"📬 Radar de chantiers en direct : {st.session_state.user_ville.upper()}")
     st.write(f"🧑‍🔧 Artisan : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
+    
+    # Affichage du statut de l'abonnement de l'artisan
+    if st.session_state.user_statut == "actif":
+        st.success("👑 Compte Premium ZELIA PRO — Accès Illimité Actif")
+    elif essai_valide:
+        st.info(f"⏳ Période d'essai gratuite active : Il vous reste **{jours_restants} jours** d'utilisation.")
+    else:
+        st.error("🔒 Période d'essai expirée (0 jours restants).")
+
     st.write("---")
 
-    if st.session_state.user_statut != "actif":
-        st.error("🔒 ACCÈS LIMITÉ — Fin de la période d'essai")
-        st.write("Pour débloquer l'accès aux demandes de votre secteur, veuillez activer votre abonnement Zelia Pro.")
+    # Double sécurité : Verrouillage si l'abonnement n'est pas actif ET l'essai est expiré
+    if st.session_state.user_statut != "actif" and not essai_valide:
+        st.error("🔒 ACCÈS LIMITÉ — Abonnement Requis")
+        st.write("Vos 12 jours d'essai gratuit sont terminés. Pour débloquer à nouveau l'accès instantané aux demandes urgentes de votre secteur, veuillez activer votre accès professionnel.")
         
-        msg_activation = urllib.parse.quote(f"Bonjour Bonheur, je souhaite activer mon abonnement Zelia Pro à 29,99€/mois pour mon compte ({st.session_state.user_email}).")
-        st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"https://wa.me{msg_activation}", use_container_width=True, type="primary")
+        # Signal automatique envoyé directement sur ton WhatsApp Business
+        texte_signal = (
+            f"🚨 ALERTE RÉABONNEMENT ZELIA 🚨\n\n"
+            f"L'artisan suivant souhaite activer son accès Pro :\n"
+            f"📧 E-mail : {st.session_state.user_email}\n"
+            f"🧑‍🔧 Métier : {st.session_state.user_metier.upper()}\n"
+            f"🌍 Ville : {st.session_state.user_ville.upper()}"
+        )
+        msg_encode = urllib.parse.quote(texte_signal)
+        st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"whatsapp://send?phone=242055967601&text={msg_encode}", use_container_width=True, type="primary")
     else:
+        # L'accès aux chantiers reste ouvert pendant les 12 jours d'essai ou si le statut est actif
         leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
         if not leads_bruts:
-            st.warning("🔎 Aucun chantier disponible pour le moment.")
+            st.warning("🔎 Aucun chantier direct disponible pour le moment dans votre ville. Le système est en veille permanente.")
         else:
             st.success(f"🔔 {len(leads_bruts)} demandes d'urgences interceptées !")
             for idx, client in enumerate(leads_bruts):
@@ -167,39 +222,34 @@ else:
                     st.markdown("### 📍 Alerte Client Direct (Zelia Sniper)")
                     st.write(client.get("texte", "Pas de détails."))
                     
-                    pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible à {st.session_state.user_ville.upper()} pour votre urgence."
-                    st.text_area("💡 Réponse rapide :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
-                    # 🚀 SOLUTION CHIRURGICALE DISCUSSION CLIENT
+                    pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible immédiatement à {st.session_state.user_ville.upper()} pour votre urgence. Je peux intervenir tout de suite !"
+                    st.text_area("💡 Votre réponse rapide pré-rédigée :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
+                    
+                    # Ouverture de discussion instantanée sans page blanche
                     num_client = client.get("telephone", "").strip()
                     if num_client:
-                        # On garde UNIQUEMENT les chiffres pour wa.me
                         num_propre = "".join(c for c in num_client if c.isdigit())
-                        st.link_button(
-                            "🟢 Appeler / WhatsApp Direct", 
-                            f"https://wa.me{num_propre}?text={urllib.parse.quote(pitch)}", 
-                            use_container_width=True
-        )
+                        st.link_button("🟢 Appeler / WhatsApp Direct", f"whatsapp://send?phone={num_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
 
     st.write("---")
     if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
         st.session_state.authentifie = False
         st.session_state.user_email = ""
         st.session_state.user_statut = "inactif"
+        st.session_state.user_date_creation = ""
         st.rerun()
-
+                                                                                     
 # ==========================================
 # 5. ASSISTANCE TECHNIQUE & SUPPORT
 # ==========================================
 st.write("---")
 st.markdown("### 🛠️ Assistance Technique Internationale")
 c1, c2 = st.columns(2)
-with c1: 
-    # 🚀 SOLUTION CHIRURGICALE DISCUSSION SUPPORT (ZÉRO ESPACE)
+with c1:
     texte_aide = urllib.parse.quote("Bonjour Support Zelia, j'ai besoin d'aide avec mon application.")
-    st.link_button(
-        "💬 Support Client WhatsApp", 
-        f"https://wa.me{texte_aide}", 
-        use_container_width=True
-    )
+    # 🚀 FIX DE LA DISCUSSION PRIVÉE DU SUPPORT DIRECT VERS TON WHATSAPP BUSINESS
+    st.link_button("💬 Support Client WhatsApp", f"whatsapp://send?phone=242055967601&text={texte_aide}", use_container_width=True)
 with c2: 
+    # 🚀 ENREGISTREMENT DE TA VRAIE ADRESSE OFFICIELLE
     st.link_button("📧 Support Commercial E-mail", "mailto:support.zeliao@gmail.com", use_container_width=True)
+        
