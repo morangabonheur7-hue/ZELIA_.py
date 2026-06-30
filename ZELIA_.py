@@ -202,4 +202,4 @@ with c1:
         use_container_width=True
     )
 with c2: 
-    st.link_button("📧 Support Commercial E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
+    st.link_button("📧 Support Commercial E-mail", "mailto:support.zeliao@gmail.com", use_container_width=True)
