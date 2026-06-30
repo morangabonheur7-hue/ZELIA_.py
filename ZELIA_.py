@@ -91,7 +91,7 @@ def envoyer_fiche_email(destinataire, texte, lien):
         if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
     except: st.error("Échec de connexion au service d'e-mail.")
-
+        
 # ==========================================
 # 3. ARCHITECTURE DE L'ÉCRAN D'ACCUEIL GLOBAL
 # ==========================================
@@ -154,8 +154,16 @@ else:
         st.error("🔒 ACCÈS LIMITÉ — Fin de la période d'essai")
         st.write("Pour débloquer l'accès aux demandes de votre secteur, veuillez activer votre abonnement Zelia Pro.")
         
-        msg_activation = urllib.parse.quote(f"Bonjour Bonheur, je souhaite activer mon abonnement Zelia Pro à 29,99€/mois pour mon compte ({st.session_state.user_email}).")
-        st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"https://wa.me{msg_activation}", use_container_width=True, type="primary")
+        # 🚀 RE-CONCEPTION DU SIGNAL AUTOMATIQUE DIRECT VERS TON WHATSAPP BUSINESS
+        texte_signal = (
+            f"🚨 ALERTE RÉABONNEMENT ZELIA 🚨\n\n"
+            f"L'artisan suivant souhaite activer son accès Pro :\n"
+            f"📧 E-mail : {st.session_state.user_email}\n"
+            f"🧑‍🔧 Métier : {st.session_state.user_metier.upper()}\n"
+            f"🌍 Ville : {st.session_state.user_ville.upper()}"
+        )
+        msg_encode = urllib.parse.quote(texte_signal)
+        st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"https://wa.me{msg_encode}", use_container_width=True, type="primary")
     else:
         leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
         if not leads_bruts:
@@ -169,18 +177,19 @@ else:
                     
                     pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible à {st.session_state.user_ville.upper()} pour votre urgence."
                     st.text_area("💡 Réponse rapide :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
-                    # 🚀 SOLUTION CHIRURGICALE DISCUSSION CLIENT
+                    
+                    # 🚀 CORRECTIF CHIRURGICAL ANTI PAGE BLANCHE (API OFFICIELLE)
                     num_client = client.get("telephone", "").strip()
                     if num_client:
-                        # On garde UNIQUEMENT les chiffres pour wa.me
                         num_propre = "".join(c for c in num_client if c.isdigit())
                         st.link_button(
                             "🟢 Appeler / WhatsApp Direct", 
-                            f"https://wa.me{num_propre}?text={urllib.parse.quote(pitch)}", 
+                            f"https://whatsapp.com{num_propre}&text={urllib.parse.quote(pitch)}", 
                             use_container_width=True
-        )
+                        )
 
     st.write("---")
+                                              
     if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
         st.session_state.authentifie = False
         st.session_state.user_email = ""
