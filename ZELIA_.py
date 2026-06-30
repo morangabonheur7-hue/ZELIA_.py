@@ -169,12 +169,16 @@ else:
                     
                     pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible à {st.session_state.user_ville.upper()} pour votre urgence."
                     st.text_area("💡 Réponse rapide :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
-                    
-                    # 🚀 FIX DE LA PAGE BLANCHE INTERNATIONALE WHATSAPP
+                    # 🚀 SOLUTION CHIRURGICALE DISCUSSION CLIENT
                     num_client = client.get("telephone", "").strip()
                     if num_client:
+                        # On garde UNIQUEMENT les chiffres pour wa.me
                         num_propre = "".join(c for c in num_client if c.isdigit())
-                        st.link_button("🟢 Appeler / WhatsApp Direct", f"https://whatsapp.com{num_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
+                        st.link_button(
+                            "🟢 Appeler / WhatsApp Direct", 
+                            f"https://wa.me{num_propre}?text={urllib.parse.quote(pitch)}", 
+                            use_container_width=True
+        )
 
     st.write("---")
     if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
@@ -189,6 +193,13 @@ else:
 st.write("---")
 st.markdown("### 🛠️ Assistance Technique Internationale")
 c1, c2 = st.columns(2)
-with c1: st.link_button("💬 Support Client WhatsApp", "https://wa.me", use_container_width=True)
-with c2: st.link_button("📧 Support Commercial E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
-    
+with c1: 
+    # 🚀 SOLUTION CHIRURGICALE DISCUSSION SUPPORT (ZÉRO ESPACE)
+    texte_aide = urllib.parse.quote("Bonjour Support Zelia, j'ai besoin d'aide avec mon application.")
+    st.link_button(
+        "💬 Support Client WhatsApp", 
+        f"https://wa.me{texte_aide}", 
+        use_container_width=True
+    )
+with c2: 
+    st.link_button("📧 Support Commercial E-mail", "mailto:support.zelia@gmail.com", use_container_width=True)
