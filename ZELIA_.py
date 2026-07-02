@@ -124,8 +124,8 @@ if not st.session_state.authentifie:
                 else: st.error("Veuillez remplir toutes les cases pour être contacté.")
                 
         with col_artisan:
-        st.header("🔵 Espace Professionnel (Artisan)")
-        st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
+           st.header("🔵 Espace Professionnel (Artisan)")
+           st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
         
         # 🔐 FORMULAIRE DE CONNEXION UNIFIÉ POUR FORCER LE RAFRAÎCHISSEMENT INSTANTANÉ
         with st.form("form_connexion_artisan"):
