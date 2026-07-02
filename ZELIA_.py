@@ -94,8 +94,7 @@ def envoyer_fiche_email(destinataire, texte, lien):
         res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
         if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
-    except: st.error("Échec de connexion au service d'e-mail.")
-
+            
 # ==========================================
 # 3. ARCHITECTURE DE L'ÉCRAN D'ACCUEIL GLOBAL
 # ==========================================
@@ -127,24 +126,25 @@ if not st.session_state.authentifie:
         st.header("🔵 Espace Professionnel (Artisan)")
         st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
         
-        # 🔐 LE FORMULAIRE DE CONNEXION DIRECTE (UN SEUL CLIC POUR ENTRER)
-        with st.form("form_connexion_artisan"):
-            email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
-            bouton_verifier = st.form_submit_button("🔓 Ouvrir mon tableau de bord", use_container_width=True)
-            
-        if email_input and bouton_verifier:
+        # 🔐 ENTRÉE LIBRE SANS ST.FORM POUR UN RAFRAÎCHISSEMENT SANS BUG
+        email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
+        
+        if email_input:
             utilisateur = verifier_si_utilisateur_existe(email_input)
             if utilisateur:
-                # Connexion instantanée automatique ! Plus de bouton en double
-                st.session_state.user_email = utilisateur['email']
-                st.session_state.user_metier = utilisateur['metier']
-                st.session_state.user_ville = utilisateur['ville']
-                st.session_state.user_statut = str(utilisateur['statut_abonnement'])
-                st.session_state.user_date_creation = str(utilisateur.get('created_at', ''))
-                st.session_state.authentifie = True
-                st.rerun()
+                st.success(f"✅ Profil identifié ! {utilisateur['metier'].upper()} à {utilisateur['ville'].upper()}")
+                if st.button("🔓 Ouvrir mon tableau de bord", use_container_width=True, type="primary"):
+                    st.session_state.user_email = utilisateur['email']
+                    st.session_state.user_metier = utilisateur['metier']
+                    st.session_state.user_ville = utilisateur['ville']
+                    st.session_state.user_statut = str(utilisateur['statut_abonnement'])
+                    st.session_state.user_date_creation = str(utilisateur.get('created_at', ''))
+                    st.session_state.authentifie = True
+                    st.rerun()
             else:
-                st.info("🆕 Enregistrez votre zone :")
+                st.info("🆕 Adresse inconnue. Enregistrez votre zone ci-dessous pour activer vos 12 jours gratuits :")
+                
+                # Un seul sous-formulaire propre pour l'inscription, totalement indépendant
                 with st.form("form_inscription_artisan"):
                     choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
                     choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london, bruxelles...").strip().lower()
@@ -164,7 +164,7 @@ if not st.session_state.authentifie:
                                     time.sleep(1)
                                     st.rerun()
                         else: st.error("Veuillez écrire votre ville d'intervention.")
-    
+
 # ==========================================
 # 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & CALCULATEUR
 # ==========================================
