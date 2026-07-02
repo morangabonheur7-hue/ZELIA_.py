@@ -122,7 +122,8 @@ if not st.session_state.authentifie:
                     if particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone):
                         st.success("✅ Votre urgence a été diffusée ! Les artisans de votre quartier vont vous contacter d'ici quelques minutes.")
                 else: st.error("Veuillez remplir toutes les cases pour être contacté.")
-   with col_artisan:
+                
+    with col_artisan:
         st.header("🔵 Espace Professionnel (Artisan)")
         st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
         
@@ -163,7 +164,7 @@ if not st.session_state.authentifie:
                                     time.sleep(1)
                                     st.rerun()
                         else: st.error("Veuillez écrire votre ville d'intervention.")
-            
+    
 # ==========================================
 # 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & CALCULATEUR
 # ==========================================
