@@ -47,34 +47,28 @@ def inscrire_nouvel_artisan(email, metier, ville):
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201 or res.status_code == 200:
-            return True
-        else:
-            st.error(f"⚠️ Code Erreur Supabase (Artisan) : {res.status_code} - {res.text}")
-    except Exception as e: 
-        st.error(f"❌ Erreur Technique Inscription : {e}")
+        if res.status_code == 201 or res.status_code == 200: return True
+        else: st.error(f"⚠️ Code Erreur Supabase (Artisan) : {res.status_code} - {res.text}")
+    except Exception as e: st.error(f"❌ Erreur Technique Inscription : {e}")
     return False
 
 def particulier_deposer_chantier(metier, ville, description, telephone):
     url = f"{SUPABASE_URL}/rest/v1/leads"
-    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer=return": "minimal"}
     texte_final = f"🚨 URGENCE PARTICULIER DIRECT :\n📢 {description}"
     payload = [{
         "metier": metier.lower(),
         "ville": ville.lower(),
         "texte": texte_final,
         "telephone": telephone.strip(),
-        "lien": "https://zelia-global.com",
+        "lien": "https://streamlit.app",
         "plateforme": "Zelia Public Direct"
     }]
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201 or res.status_code == 200:
-            return True
-        else:
-            st.error(f"⚠️ Code Erreur Supabase (Chantier) : {res.status_code} - {res.text}")
-    except Exception as e: 
-        st.error(f"❌ Erreur Technique Chantier : {e}")
+        if res.status_code == 201 or res.status_code == 200: return True
+        else: st.error(f"⚠️ Code Erreur Supabase (Chantier) : {res.status_code} - {res.text}")
+    except Exception as e: st.error(f"❌ Erreur Technique Chantier : {e}")
     return False
 
 def extraire_leads_strict(metier, ville):
@@ -90,7 +84,7 @@ def extraire_leads_strict(metier, ville):
 def envoyer_fiche_email(destinataire, texte, lien):
     headers = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
     payload = {"from": "Zelia Global <onboarding@resend.dev>", "to": [destinataire], "subject": "🚨 FICHE CHANTIER ZELIA", "html": f"<p>{texte}</p><br><a href='{lien}'>Ouvrir l'application</a>"}
-        try:
+    try:
         res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
         if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
@@ -127,7 +121,7 @@ if not st.session_state.authentifie:
         st.header("🔵 Espace Professionnel (Artisan)")
         st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
         
-        # 🔐 ENTRÉE LIBRE SANS ST.FORM POUR UN RAFRAÎCHISSEMENT SANS BUG
+        # 🔐 ENTRÉE LIBRE DE L'E-MAIL SANS FORMULAIRE POUR ÉVITER LA BOUCLE INFINIE
         email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
         
         if email_input:
@@ -145,7 +139,7 @@ if not st.session_state.authentifie:
             else:
                 st.info("🆕 Adresse inconnue. Enregistrez votre zone ci-dessous pour activer vos 12 jours gratuits :")
                 
-                # Un seul sous-formulaire propre pour l'inscription, totalement indépendant
+                # Un sous-formulaire indépendant et propre uniquement pour l'inscription
                 with st.form("form_inscription_artisan"):
                     choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
                     choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london, bruxelles...").strip().lower()
@@ -165,7 +159,7 @@ if not st.session_state.authentifie:
                                     time.sleep(1)
                                     st.rerun()
                         else: st.error("Veuillez écrire votre ville d'intervention.")
-
+        
 # ==========================================
 # 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & CALCULATEUR
 # ==========================================
@@ -175,7 +169,7 @@ else:
     
     if st.session_state.user_date_creation:
         try:
-            # Nettoyage et calcul de l'écart de date
+            # Séparation de la date Supabase et calcul de l'écart
             date_pure_str = st.session_state.user_date_creation.split("T")[0]
             date_inscription = datetime.datetime.strptime(date_pure_str, "%Y-%m-%d").date()
             date_aujourdhui = datetime.datetime.utcnow().date()
@@ -190,7 +184,7 @@ else:
     st.header(f"📬 Radar de chantiers en direct : {st.session_state.user_ville.upper()}")
     st.write(f"🧑‍🔧 Artisan : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
     
-    # Affichage du statut de l'abonnement de l'artisan
+    # Affichage dynamique du statut de l'abonnement
     if st.session_state.user_statut == "actif":
         st.success("👑 Compte Premium ZELIA PRO — Accès Illimité Actif")
     elif essai_valide:
@@ -200,7 +194,7 @@ else:
 
     st.write("---")
 
-    # Double sécurité : Verrouillage si l'abonnement n'est pas actif ET l'essai est expiré
+    # Double sécurité : Verrouillage si non-actif ET essai expiré
     if st.session_state.user_statut != "actif" and not essai_valide:
         st.error("🔒 ACCÈS LIMITÉ — Abonnement Requis")
         st.write("Vos 12 jours d'essai gratuit sont terminés. Pour débloquer à nouveau l'accès instantané aux demandes urgentes de votre secteur, veuillez activer votre accès professionnel.")
@@ -216,7 +210,7 @@ else:
         msg_encode = urllib.parse.quote(texte_signal)
         st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"whatsapp://send?phone=242055967601&text={msg_encode}", use_container_width=True, type="primary")
     else:
-        # L'accès aux chantiers reste ouvert pendant les 12 jours d'essai ou si le statut est actif
+        # L'accès reste ouvert si l'artisan est Premium ou si l'essai gratuit est valide
         leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
         if not leads_bruts:
             st.warning("🔎 Aucun chantier direct disponible pour le moment dans votre ville. Le système est en veille permanente.")
@@ -230,7 +224,7 @@ else:
                     pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible immédiatement à {st.session_state.user_ville.upper()} pour votre urgence. Je peux intervenir tout de suite !"
                     st.text_area("💡 Votre réponse rapide pré-rédigée :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
                     
-                    # Ouverture de discussion instantanée sans page blanche
+                    # Fixation du bouton WhatsApp Client universel
                     num_client = client.get("telephone", "").strip()
                     if num_client:
                         num_propre = "".join(c for c in num_client if c.isdigit())
@@ -243,7 +237,7 @@ else:
         st.session_state.user_statut = "inactif"
         st.session_state.user_date_creation = ""
         st.rerun()
-
+        
 # ==========================================
 # 5. ASSISTANCE TECHNIQUE & SUPPORT
 # ==========================================
@@ -252,9 +246,9 @@ st.markdown("### 🛠️ Assistance Technique Internationale")
 c1, c2 = st.columns(2)
 with c1:
     texte_aide = urllib.parse.quote("Bonjour Support Zelia, j'ai besoin d'aide avec mon application.")
-    # 🚀 FIX DE LA DISCUSSION PRIVÉE DU SUPPORT DIRECT VERS TON WHATSAPP BUSINESS
+    # 🚀 FIXATION DU LIEN DE SUPPORT DIRECT VERS TON WHATSAPP BUSINESS SANS PAGE BLANCHE
     st.link_button("💬 Support Client WhatsApp", f"whatsapp://send?phone=242055967601&text={texte_aide}", use_container_width=True)
 with c2: 
-    # 🚀 ENREGISTREMENT DE TA VRAIE ADRESSE OFFICIELLE
+    # 🚀 CONFIGURATION DE TA VRAIE ADRESSE EMAIIL AVEC LE "O"
     st.link_button("📧 Support Commercial E-mail", "mailto:support.zeliao@gmail.com", use_container_width=True)
-        
+    
