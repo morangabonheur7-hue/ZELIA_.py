@@ -123,12 +123,16 @@ if not st.session_state.authentifie:
                         st.success("✅ Votre urgence a été diffusée ! Les artisans de votre quartier vont vous contacter d'ici quelques minutes.")
                 else: st.error("Veuillez remplir toutes les cases pour être contacté.")
                 
-    with col_artisan:
+        with col_artisan:
         st.header("🔵 Espace Professionnel (Artisan)")
-        st.markdown("##### Connectez-vous pour intercepter les urgences de votre secteur en direct.")
+        st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
         
-        email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
-        if email_input:
+        # 🔐 FORMULAIRE DE CONNEXION UNIFIÉ POUR FORCER LE RAFRAÎCHISSEMENT INSTANTANÉ
+        with st.form("form_connexion_artisan"):
+            email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
+            bouton_verifier = st.form_submit_button("🔍 Vérifier mon accès pro", use_container_width=True)
+            
+        if email_input and bouton_verifier:
             utilisateur = verifier_si_utilisateur_existe(email_input)
             if utilisateur:
                 st.success(f"✅ Profil identifié ! {utilisateur['metier'].upper()} à {utilisateur['ville'].upper()}")
@@ -141,12 +145,12 @@ if not st.session_state.authentifie:
                     st.session_state.authentifie = True
                     st.rerun()
             else:
-                st.info("🆕 Enregistrez votre zone :")
+                st.info("🆕 Adresse inconnue. Remplissez le formulaire ci-dessous pour activer vos 12 jours gratuits :")
                 with st.form("form_inscription_artisan"):
                     choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
-                    choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london...").strip().lower()
+                    choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london, bruxelles...").strip().lower()
                     
-                    if st.form_submit_button("🚀 Activer mes 12 jours d'essai gratuit"):
+                    if st.form_submit_button("🚀 Activer mes 12 jours d'essai gratuit", use_container_width=True):
                         if choix_ville:
                             if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville):
                                 double_check = verifier_si_utilisateur_existe(email_input)
@@ -161,7 +165,7 @@ if not st.session_state.authentifie:
                                     time.sleep(1)
                                     st.rerun()
                         else: st.error("Veuillez écrire votre ville d'intervention.")
-
+                
 # ==========================================
 # 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & CALCULATEUR
 # ==========================================
