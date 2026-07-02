@@ -90,11 +90,12 @@ def extraire_leads_strict(metier, ville):
 def envoyer_fiche_email(destinataire, texte, lien):
     headers = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
     payload = {"from": "Zelia Global <onboarding@resend.dev>", "to": [destinataire], "subject": "🚨 FICHE CHANTIER ZELIA", "html": f"<p>{texte}</p><br><a href='{lien}'>Ouvrir l'application</a>"}
-    try:
+        try:
         res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
         if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
-            
+    except: st.error("Échec de connexion au service d'e-mail.")
+
 # ==========================================
 # 3. ARCHITECTURE DE L'ÉCRAN D'ACCUEIL GLOBAL
 # ==========================================
