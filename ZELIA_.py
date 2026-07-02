@@ -122,30 +122,28 @@ if not st.session_state.authentifie:
                     if particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone):
                         st.success("✅ Votre urgence a été diffusée ! Les artisans de votre quartier vont vous contacter d'ici quelques minutes.")
                 else: st.error("Veuillez remplir toutes les cases pour être contacté.")
-                
-        with col_artisan:
-           st.header("🔵 Espace Professionnel (Artisan)")
-           st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
+   with col_artisan:
+        st.header("🔵 Espace Professionnel (Artisan)")
+        st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
         
-        # 🔐 FORMULAIRE DE CONNEXION UNIFIÉ POUR FORCER LE RAFRAÎCHISSEMENT INSTANTANÉ
+        # 🔐 LE FORMULAIRE DE CONNEXION DIRECTE (UN SEUL CLIC POUR ENTRER)
         with st.form("form_connexion_artisan"):
             email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
-            bouton_verifier = st.form_submit_button("🔍 Vérifier mon accès pro", use_container_width=True)
+            bouton_verifier = st.form_submit_button("🔓 Ouvrir mon tableau de bord", use_container_width=True)
             
         if email_input and bouton_verifier:
             utilisateur = verifier_si_utilisateur_existe(email_input)
             if utilisateur:
-                st.success(f"✅ Profil identifié ! {utilisateur['metier'].upper()} à {utilisateur['ville'].upper()}")
-                if st.button("🔓 Ouvrir mon tableau de bord", use_container_width=True, type="primary"):
-                    st.session_state.user_email = utilisateur['email']
-                    st.session_state.user_metier = utilisateur['metier']
-                    st.session_state.user_ville = utilisateur['ville']
-                    st.session_state.user_statut = str(utilisateur['statut_abonnement'])
-                    st.session_state.user_date_creation = str(utilisateur.get('created_at', ''))
-                    st.session_state.authentifie = True
-                    st.rerun()
+                # Connexion instantanée automatique ! Plus de bouton en double
+                st.session_state.user_email = utilisateur['email']
+                st.session_state.user_metier = utilisateur['metier']
+                st.session_state.user_ville = utilisateur['ville']
+                st.session_state.user_statut = str(utilisateur['statut_abonnement'])
+                st.session_state.user_date_creation = str(utilisateur.get('created_at', ''))
+                st.session_state.authentifie = True
+                st.rerun()
             else:
-                st.info("🆕 Adresse inconnue. Remplissez le formulaire ci-dessous pour activer vos 12 jours gratuits :")
+                st.info("🆕 Enregistrez votre zone :")
                 with st.form("form_inscription_artisan"):
                     choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
                     choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london, bruxelles...").strip().lower()
@@ -165,7 +163,7 @@ if not st.session_state.authentifie:
                                     time.sleep(1)
                                     st.rerun()
                         else: st.error("Veuillez écrire votre ville d'intervention.")
-                
+            
 # ==========================================
 # 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & CALCULATEUR
 # ==========================================
