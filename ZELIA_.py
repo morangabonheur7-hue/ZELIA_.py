@@ -98,68 +98,91 @@ st.write("L'écosystème international de mise en relation directe pour les dép
 st.write("---")
 
 if not st.session_state.authentifie:
-    col_particulier, col_artisan = st.columns(2, gap="large")
+    # 📑 CRÉATION DES ONGLETS POUR LA PAGE À PROPOS
+    onglet_radar, onglet_apropos = st.tabs(["📡 Radar en Direct", "ℹ️ À propos & Fonctionnement"])
     
-    with col_particulier:
-        st.header("🟢 J'ai une Urgence (Particulier)")
-        st.markdown("##### Déposez votre demande gratuitement en 5 secondes. Aucun compte requis.")
+    with onglet_radar:
+        col_particulier, col_artisan = st.columns(2, gap="large")
         
-        with st.form("form_particulier", clear_on_submit=True):
-            p_metier = st.selectbox("De quel professionnel avez-vous besoin ?", ["plombier", "electricien", "serrurier", "mecanicien"])
-            p_ville = st.text_input("Dans quelle ville vous situez-vous ?", placeholder="Ex: paris, london, bruxelles...").strip().lower()
-            p_phone = st.text_input("Votre numéro de téléphone (WhatsApp de préférence) :", placeholder="Ex: +33612345678").strip()
-            p_desc = st.text_area("Expliquez votre problème en quelques mots :", placeholder="Ex: Fuite d'eau sous mon évier, l'eau coule partout au secours !")
+        with col_particulier:
+            st.header("🟢 J'ai une Urgence (Particulier)")
+            st.markdown("##### Déposez votre demande gratuitement en 5 secondes. Aucun compte requis.")
             
-            submit_particulier = st.form_submit_button("📢 Envoyer ma demande immédiatement")
-            if submit_particulier:
-                if p_ville and p_desc and p_phone:
-                    if particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone):
-                        st.success("✅ Votre urgence a été diffusée ! Les artisans de votre quartier vont vous contacter d'ici quelques minutes.")
-                else: st.error("Veuillez remplir toutes les cases pour être contacté.")
+            with st.form("form_particulier", clear_on_submit=True):
+                p_metier = st.selectbox("De quel professionnel avez-vous besoin ?", ["plombier", "electricien", "serrurier", "mecanicien"])
+                p_ville = st.text_input("Dans quelle ville vous situez-vous ?", placeholder="Ex: paris, london, bruxelles...").strip().lower()
+                p_phone = st.text_input("Votre numéro de téléphone (WhatsApp de préférence) :", placeholder="Ex: +33612345678").strip()
+                p_desc = st.text_area("Expliquez votre problème en quelques mots :", placeholder="Ex: Fuite d'eau sous mon évier, l'eau coule partout au secours !")
                 
-    with col_artisan:
-        st.header("🔵 Espace Professionnel (Artisan)")
-        st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
-        
-        # 🔐 ENTRÉE LIBRE DE L'E-MAIL SANS FORMULAIRE POUR ÉVITER LA BOUCLE INFINIE
-        email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
-        
-        if email_input:
-            utilisateur = verifier_si_utilisateur_existe(email_input)
-            if utilisateur:
-                st.success(f"✅ Profil identifié ! {utilisateur['metier'].upper()} à {utilisateur['ville'].upper()}")
-                if st.button("🔓 Ouvrir mon tableau de bord", use_container_width=True, type="primary"):
-                    st.session_state.user_email = utilisateur['email']
-                    st.session_state.user_metier = utilisateur['metier']
-                    st.session_state.user_ville = utilisateur['ville']
-                    st.session_state.user_statut = str(utilisateur['statut_abonnement'])
-                    st.session_state.user_date_creation = str(utilisateur.get('created_at', ''))
-                    st.session_state.authentifie = True
-                    st.rerun()
-            else:
-                st.info("🆕 Adresse inconnue. Enregistrez votre zone ci-dessous pour activer vos 12 jours gratuits :")
-                
-                # Un sous-formulaire indépendant et propre uniquement pour l'inscription
-                with st.form("form_inscription_artisan"):
-                    choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
-                    choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london, bruxelles...").strip().lower()
+                submit_particulier = st.form_submit_button("📢 Envoyer ma demande immédiatement")
+                if submit_particulier:
+                    if p_ville and p_desc and p_phone:
+                        if particulier_deposer_chantier(p_metier, p_ville, p_desc, p_phone):
+                            st.success("✅ Votre urgence a été diffusée ! Les artisans de votre quartier vont vous contacter d'ici quelques minutes.")
+                    else: st.error("Veuillez remplir toutes les cases pour être contacté.")
                     
-                    if st.form_submit_button("🚀 Activer mes 12 jours d'essai gratuit", use_container_width=True):
-                        if choix_ville:
-                            if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville):
-                                double_check = verifier_si_utilisateur_existe(email_input)
-                                if double_check:
-                                    st.session_state.user_email = double_check['email']
-                                    st.session_state.user_metier = double_check['metier']
-                                    st.session_state.user_ville = double_check['ville']
-                                    st.session_state.user_statut = "inactif"
-                                    st.session_state.user_date_creation = str(double_check.get('created_at', ''))
-                                    st.session_state.authentifie = True
-                                    st.success("Compte d'essai créé avec succès !")
-                                    time.sleep(1)
-                                    st.rerun()
-                        else: st.error("Veuillez écrire votre ville d'intervention.")
+        with col_artisan:
+            st.header("🔵 Espace Professionnel (Artisan)")
+            st.markdown("##### Connectez-vous ou enregistrez votre zone d'intervention en direct.")
+            
+            email_input = st.text_input("🔑 Entrez votre adresse e-mail pro :", placeholder="artisan@example.com").strip().lower()
+            
+            if email_input:
+                utilisateur = verifier_si_utilisateur_existe(email_input)
+                if utilisateur:
+                    st.success(f"✅ Profil identifié ! {utilisateur['metier'].upper()} à {utilisateur['ville'].upper()}")
+                    if st.button("🔓 Ouvrir mon tableau de bord", use_container_width=True, type="primary"):
+                        st.session_state.user_email = utilisateur['email']
+                        st.session_state.user_metier = utilisateur['metier']
+                        st.session_state.user_ville = utilisateur['ville']
+                        st.session_state.user_statut = str(utilisateur['statut_abonnement'])
+                        st.session_state.user_date_creation = str(utilisateur.get('created_at', ''))
+                        st.session_state.authentifie = True
+                        st.rerun()
+                else:
+                    st.info("🆕 Adresse inconnue. Enregistrez votre zone ci-dessous pour activer vos 12 jours gratuits :")
+                    
+                    with st.form("form_inscription_artisan"):
+                        choix_metier = st.selectbox("Votre corps de métier :", ["plombier", "electricien", "serrurier", "mecanicien"])
+                        choix_ville = st.text_input("Votre ville exclusive d'intervention :", placeholder="paris, london, bruxelles...").strip().lower()
+                        
+                        if st.form_submit_button("🚀 Activer mes 12 jours d'essai gratuit", use_container_width=True):
+                            if choix_ville:
+                                if inscrire_nouvel_artisan(email_input, choix_metier, choix_ville):
+                                    double_check = verifier_si_utilisateur_existe(email_input)
+                                    if double_check:
+                                        st.session_state.user_email = double_check['email']
+                                        st.session_state.user_metier = double_check['metier']
+                                        st.session_state.user_ville = double_check['ville']
+                                        st.session_state.user_statut = "inactif"
+                                        st.session_state.user_date_creation = str(double_check.get('created_at', ''))
+                                        st.session_state.authentifie = True
+                                        st.success("Compte d'essai créé avec succès !")
+                                        time.sleep(1)
+                                        st.rerun()
+                            else: st.error("Veuillez écrire votre ville d'intervention.")
+
+    # 📄 EXTENSION : LA PAGE À PROPOS 100% CONFIANCE
+    with onglet_apropos:
+        st.header("ℹ️ À propos de ZELIA Global")
+        st.markdown("""
+        **ZELIA Global** est une infrastructure numérique internationale dédiée à la mise en relation ultra-rapide entre les particuliers en situation d'urgence domestique et les artisans indépendants de secteur. 
         
+        ### 🛡️ Notre Charte de Confiance & Sécurité
+        * **Pour les Particuliers** : Le dépôt d'urgence est **100% gratuit et sans aucune inscription**. Votre numéro de téléphone n'est transmis qu'au professionnel certifié qui intercepte votre demande afin de vous garantir une intervention rapide et sans intermédiaire surtaxé.
+        * **Pour les Artisans** : Nous luttons contre les plateformes de devis abusives. ZELIA fonctionne sous forme d'un abonnement fixe, transparent et sans engagement, avec une période de test initiale de 12 jours offerte. Pour préserver votre volume d'activité, les places sont strictement limitées à **5 professionnels par secteur**.
+        
+        ### ⚙️ Comment fonctionne le service ?
+        1. **Le Signal** : Un particulier déclare un problème (Ex: fuite d'eau) sur notre interface verte.
+        2. **L'Interception** : Notre algorithme pousse l'alerte sur le radar de l'artisan connecté dans la même ville.
+        3. **Le Contact** : L'artisan clique sur le bouton sécurisé et appelle directement le client sur son WhatsApp ou téléphone pour fixer l'intervention.
+        
+        ### ✉️ Support International & Assistance
+        Notre équipe technique est à votre écoute 7j/7 pour vous accompagner dans la configuration de votre espace :
+        * **Assistance Directe WhatsApp** : Cliquez sur le bouton d'aide en bas de page pour ouvrir un chat privé.
+        * **Contact Commercial E-mail** : support.zeliao@gmail.com
+        """)
+    
 # ==========================================
 # 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & CALCULATEUR
 # ==========================================
