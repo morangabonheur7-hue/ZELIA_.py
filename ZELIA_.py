@@ -29,7 +29,8 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0:
-                u = donnees
+                # 🚀 EXTRACTION CHIRURGICALE DE LA PREMIÈRE LIGNE UNIQUE [0]
+                u = donnees[0]
                 if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
                     u["statut_abonnement"] = "inactif"
                 return u
@@ -55,7 +56,6 @@ def inscrire_nouvel_artisan(email, metier, ville):
 
 def particulier_deposer_chantier(metier, ville, description, telephone):
     url = f"{SUPABASE_URL}/rest/v1/leads"
-    # 🚀 REFIXATION DE LA SYNTAXE PREFER DE SUPABASE
     headers = {
         "apikey": SUPABASE_KEY, 
         "Authorization": f"Bearer {SUPABASE_KEY}", 
