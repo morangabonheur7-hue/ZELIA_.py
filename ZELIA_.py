@@ -29,8 +29,7 @@ def verifier_si_utilisateur_existe(email):
         if res.status_code == 200:
             donnees = res.json()
             if len(donnees) > 0:
-                # 🚀 EXTRACTION CHIRURGICALE DE LA PREMIÈRE LIGNE UNIQUE [0]
-                u = donnees[0]
+                u = donnees[0] # Extraction de la première ligne
                 if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
                     u["statut_abonnement"] = "inactif"
                 return u
@@ -43,7 +42,7 @@ def inscrire_nouvel_artisan(email, metier, ville):
     payload = [{
         "email": email.lower(), 
         "metier": metier.lower(), 
-        "ville": ville.lower(), 
+        "ville": ville.lower().strip(), # Nettoyage strict des espaces
         "statut_abonnement": "inactif",
         "date_activation": None
     }]
@@ -65,8 +64,8 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
     texte_final = f"🚨 URGENCE PARTICULIER DIRECT :\n📢 {description}"
     payload = [{
         "metier": metier.lower(),
-        "ville": ville.lower(),
-        "texte": texte_final,
+        "ville": ville.lower().strip(), # Nettoyage strict des espaces
+        "texte": text_final,
         "telephone": telephone.strip(),
         "lien": "https://tinyurl.com",
         "plateforme": "Zelia Public Direct"
@@ -79,8 +78,8 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
     return False
 
 def extraire_leads_strict(metier, ville):
-    il_y_a_3_jours = (datetime.datetime.utcnow() - datetime.timedelta(hours=72)).isoformat()
-    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville.lower()},global)&created_at=gte.{il_y_a_3_jours}&order=id.desc&limit=100"
+    # 🚀 SUPPRESSION TEMPORAIRE DU FILTRE DES 3 JOURS POUR TESTER L'AFFICHAGE BRUT SANS CONFLIT HORAIRE
+    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville.lower().strip()},global)&order=id.desc&limit=100"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
@@ -96,7 +95,7 @@ def envoyer_fiche_email(destinataire, texte, lien):
         if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
         else: st.error("Erreur d'envoi de l'e-mail.")
     except: st.error("Échec de connexion au service d'e-mail.")
-
+    
 # ==========================================
 # 3. ARCHITECTURE DE L'ÉCRAN D'ACCUEIL GLOBAL
 # ==========================================
