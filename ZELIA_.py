@@ -65,7 +65,7 @@ def particulier_deposer_chantier(metier, ville, description, telephone):
     payload = [{
         "metier": metier.lower(),
         "ville": ville.lower().strip(), # Nettoyage strict des espaces
-        "texte": text_final,
+        "texte": texte_final,
         "telephone": telephone.strip(),
         "lien": "https://tinyurl.com",
         "plateforme": "Zelia Public Direct"
