@@ -200,7 +200,7 @@ if not st.session_state.authentifie:
         * **Assistance Directe WhatsApp** : Cliquez sur le bouton d'aide en bas de page pour ouvrir un chat privé.
         * **Contact Commercial E-mail** : support.zeliao@gmail.com
         """)
-        
+
 # ==========================================
 # 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & DOUBLE CALCULATEUR
 # ==========================================
@@ -215,7 +215,7 @@ else:
     if st.session_state.user_statut == "actif" and st.session_state.user_date_activation and st.session_state.user_date_activation != "None":
         try:
             # Sécurisation de la date d'activation reçue de Supabase
-            date_pure_act = st.session_state.user_date_activation.split(" ")[0]
+            date_pure_act = st.session_state.user_date_activation.split(" ")
             date_activation = datetime.datetime.strptime(date_pure_act, "%Y-%m-%d").date()
             jours_ecoules_premium = (date_aujourdhui - date_activation).days
             jours_restants_premium = 30 - jours_ecoules_premium
@@ -228,7 +228,7 @@ else:
     if st.session_state.user_date_creation and not premium_valide:
         try:
             # Sécurisation de la date d'inscription reçue de Supabase
-            date_pure_crea = st.session_state.user_date_creation.split("T")[0]
+            date_pure_crea = st.session_state.user_date_creation.split("T")
             date_inscription = datetime.datetime.strptime(date_pure_crea, "%Y-%m-%d").date()
             jours_ecoules_essai = (date_aujourdhui - date_inscription).days
             jours_restants_essai = 12 - jours_ecoules_essai
@@ -267,7 +267,7 @@ else:
         msg_encode = urllib.parse.quote(texte_signal)
         st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"whatsapp://send?phone=242055967601&text={msg_encode}", use_container_width=True, type="primary")
     else:
-        # Le radar s'ouvre proprement si au moins l'un des deux compteurs est au vert
+        # L'accès s'ouvre si l'un des deux chronomètres est valide
         leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
         if not leads_bruts:
             st.warning("🔎 Aucun chantier direct disponible pour le moment dans votre ville. Le système est en veille permanente.")
@@ -281,11 +281,16 @@ else:
                     pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible immédiatement à {st.session_state.user_ville.upper()} pour votre urgence. Je peux intervenir tout de suite !"
                     st.text_area("💡 Votre réponse rapide pré-rédigée :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
                     
-                    # Bouton d'appel client ultra-stable whatsapp:// pour détruire la page blanche
+                    # 🚀 INTEGRATION DOUBLE BOUTON COMPATIBLE EUROPE
                     num_client = client.get("telephone", "").strip()
                     if num_client:
                         num_propre = "".join(c for c in num_client if c.isdigit())
-                        st.link_button("🟢 Appeler / WhatsApp Direct", f"whatsapp://send?phone={num_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
+                        
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            st.link_button("📞 Appel Normal Direct", f"tel:{num_propre}", use_container_width=True)
+                        with btn_col2:
+                            st.link_button("🟢 WhatsApp Message", f"whatsapp://send?phone={num_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
 
     st.write("---")
     if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
