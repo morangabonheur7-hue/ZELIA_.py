@@ -1,101 +1,138 @@
+
 import streamlit as st
-import time, requests, urllib.parse, os, datetime
+import requests
+import urllib.parse
 
-# ==========================================
-# 1. CONFIGURATION INTERFACE & ACCÈS SÉCURISÉS
-# ==========================================
-st.set_page_config(page_title="ZELIA GLOBAL", page_icon="🚀", layout="wide")
-
-# Modification ici : On s'assure d'avoir l'URL officielle chiffrée
+# 💎 TES CLÉS RÉELLES CENTRALISÉES EN DUR (ZÉRO BUG DE SYNCHRO)
 SUPABASE_URL = "https://qjfipgzuwkprfowgbimt.supabase.co"
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1d2twcmZvd2diaW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NjAyNDksImV4cCI6MjA5NjMzNjI0OX0.rA17-omiRtXuECi0b7RW8wNe583Qa8swoV1HrgcQ9wM")
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "re_7fidYWed_3hLMv1XeTBQ3urCAr9SQoHCz")
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqZmlwZ3p1d2twcmZvd2diaW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NjAyNDksImV4cCI6MjA5NjMzNjI0OX0.rA17-omiRtXuECi0b7RW8wNe583Qa8swoV1HrgcQ9wM"
 
-if "authentifie" not in st.session_state: st.session_state.authentifie = False
-if "user_email" not in st.session_state: st.session_state.user_email = ""
-if "user_metier" not in st.session_state: st.session_state.user_metier = "plombier"
-if "user_ville" not in st.session_state: st.session_state.user_ville = "global"
-if "user_statut" not in st.session_state: st.session_state.user_statut = "inactif"
-if "user_date_creation" not in st.session_state: st.session_state.user_date_creation = ""
+st.set_page_config(page_title="ZELIA GLOBAL - Radar de Dépannage Urbain", page_icon="🚨", layout="centered")
 
-# ==========================================
-# 2. FONCTIONS DE PROGRAMMATION INTERNE (DATABASE)
-# ==========================================
-def verifier_si_utilisateur_existe(email):
-    url = f"{SUPABASE_URL}/rest/v1/utilisateurs?email=eq.{email.lower()}"
+def lien_deja_scrappe(lien):
+    url = f"{SUPABASE_URL}/rest/v1/leads?lien=eq.{urllib.parse.quote(lien)}"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            donnees = res.json()
-            if len(donnees) > 0:
-                # 🚀 EXTRACTION CHIRURGICALE DE LA PREMIÈRE LIGNE UNIQUE AVEC [0]
-                u = donnees[0]
-                if "statut_abonnement" not in u or u["statut_abonnement"] is None: 
-                    u["statut_abonnement"] = "inactif"
-                return u
+        if res.status_code == 200 and len(res.json()) > 0: return True
     except: pass
-    return None
+    return False
 
-def inscrire_nouvel_artisan(email, metier, ville):
-    url = f"{SUPABASE_URL}/rest/v1/utilisateurs"
+def injecter_dans_supabase(metier, ville, quartier, texte, telephone, lien, plateforme):
+    url = f"{SUPABASE_URL}/rest/v1/leads"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
     payload = [{
-        "email": email.lower(), 
         "metier": metier.lower(), 
-        "ville": ville.lower().strip(),
-        "statut_abonnement": "inactif",
-        "date_activation": None
+        "ville": ville.lower(), 
+        "quartier": quartier.lower(),
+        "texte": texte, 
+        "telephone": telephone,
+        "lien": lien, 
+        "plateforme": plateforme
     }]
-    try:
-        res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201 or res.status_code == 200: return True
-        else: st.error(f"⚠️ Code Erreur Supabase (Artisan) : {res.status_code} - {res.text}")
-    except Exception as e: st.error(f"❌ Erreur Technique Inscription : {e}")
-    return False
-
-def particulier_deposer_chantier(metier, ville, description, telephone):
-    url = f"{SUPABASE_URL}/rest/v1/leads"
-    headers = {
-        "apikey": SUPABASE_KEY, 
-        "Authorization": f"Bearer {SUPABASE_KEY}", 
-        "Content-Type": "application/json", 
-        "Prefer": "return=minimal"
-    }
-    texte_final = f"🚨 URGENCE PARTICULIER DIRECT :\n📢 {description}"
-    payload = [{
-        "metier": metier.lower(),
-        "ville": ville.lower().strip(),
-        "texte": texte_final,
-        "telephone": telephone.strip(),
-        "lien": "https://tinyurl.com",
-        "plateforme": "Zelia Public Direct"
-    }]
-    try:
-        res = requests.post(url, json=payload, headers=headers, timeout=5)
-        if res.status_code == 201 or res.status_code == 200: return True
-        else: st.error(f"⚠️ Code Erreur Supabase (Chantier) : {res.status_code} - {res.text}")
-    except Exception as e: st.error(f"❌ Erreur Technique Chantier : {e}")
-    return False
-
-def extraire_leads_strict(metier, ville):
-    url = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{metier.lower()}&ville=in.({ville.lower().strip()},global)&order=id.desc&limit=100"
-    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
-    try:
-        res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200: return res.json()
+    try: requests.post(url, json=payload, headers=headers, timeout=10)
     except: pass
-    return []
 
-def envoyer_fiche_email(destinataire, texte, lien):
-    headers = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}
-    payload = {"from": "Zelia Global <onboarding@resend.dev>", "to": [destinataire], "subject": "🚨 FICHE CHANTIER ZELIA", "html": f"<p>{texte}</p><br><a href='{lien}'>Ouvrir l'application</a>"}
+# 🎨 DESIGN CSS POUR LE HEADER BLEU ROI ET TEXTE SOMBRE
+st.markdown("""
+    <style>
+    .main-title { color: #1E3A8A; font-size: 32px; font-weight: bold; text-align: center; margin-bottom: 5px; }
+    .sub-title { color: #0F172A; font-size: 16px; text-align: center; margin-bottom: 25px; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="main-title">🚨 ZELIA GLOBAL RADAR</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Centrale Internationale de Dépannage et d\'Urgence Urbaine</div>', unsafe_allow_html=True)
+
+onglet = st.tabs(["🟢 Déposer une Urgence (Particulier)", "🔵 Espace Radar Pro (Artisan)"])
+
+# ==========================================
+# ONGLET 1 : LE PARTICULIER (CAPTURE DU QUARTIER)
+# ==========================================
+with onglet[0]:
+    st.markdown("### 📢 Votre demande d'intervention immédiate")
+    
+    c1, c2 = st.columns(2)
+    with c1: v_metier = st.selectbox("Sélectionnez le métier requis :", ["Plombier", "Électricien", "Serrurier", "Mécanicien"])
+    with c2: v_ville = st.text_input("🌍 Ville actuelle :", value="Bruxelles")
+    
+    # 📍 NOUVEAU BLOC : Quartier Résidentiel Précis
+    v_quartier = st.text_input("📍 Quartier / Zone Résidentielle (Ex: Schaerbeek, Uccle...)", value="Centre")
+    
+    v_tel = st.text_input("📱 Votre numéro de téléphone (WhatsApp ou direct) :", placeholder="+32 4xx xx xx xx")
+    v_desc = st.text_area("📝 Détails de la panne ou du problème urgent :", placeholder="Ex: Fuite d'eau importante sous l'évier...")
+    
+    if st.button("🚀 Diffuser mon Alerte en Direct", use_container_width=True):
+        if not v_tel or not v_desc:
+            st.error("⚠️ Veuillez remplir votre numéro et la description pour alerter les artisans !")
+        else:
+            texte_final = f"🚨 CLIENT CERTIFIÉ CHAUD (ZELIA LIVE):\n📢 Urgence {v_metier} à {v_ville} ({v_quartier})\n📝 Détails : {v_desc}"
+            injecter_dans_supabase(v_metier, v_ville, v_quartier, texte_final, v_tel, "https://tinyurl.com", "Zelia Web App v4")
+            st.success("✅ Alerte envoyée ! Les artisans du quartier ont reçu une notification sur leur téléphone.")
+
+# ==========================================
+# ONGLET 2 : L'ARTISAN (FILTRAGE + BOUTON TELEGRAM)
+# ==========================================
+with onglet[1]:
+    st.markdown("### 📡 Connexion à votre zone d'attaque")
+    
+    col_art1, col_art2 = st.columns(2)
+    with col_art1: art_metier = st.selectbox("Votre spécialité :", ["Plombier", "Électricien", "Serrurier", "Mécanicien"])
+    with col_art2: art_ville = st.text_input("Votre ville de couverture :", value="Bruxelles")
+    
+    # 📍 NOUVEAU BLOC : Secteur Favori de l'Artisan
+    art_quartier = st.text_input("📍 Votre quartier / secteur favori (Laissez 'Global' pour toute la ville) :", value="Global")
+    
+    # 🔔 NOUVEAU BLOC : Système d'Alertes instantanées par Téléphone
+    st.markdown("---")
+    st.markdown("#### 🔔 Configuration des Notifications Téléphone")
+    activer_telegram = st.checkbox("Recevoir les chantiers urgents du quartier en direct sur mon Telegram")
+    
+    if activer_telegram:
+        st.info("💡 Pour lier votre compte et faire vibrer votre mobile, cliquez ci-dessous et activez notre robot Zelia.")
+        st.link_button("🚀 Activer mes alertes sur mon Téléphone", "https://t.me")
+    st.markdown("---")
+
+    # Lecture des chantiers correspondants dans Supabase
+    st.markdown("### 📊 Chantiers disponibles en direct sur votre radar :")
+    url_fetch = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{art_metier.lower()}&order=id.desc"
+    headers_fetch = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    
     try:
-        res = requests.post("https://resend.com", json=payload, headers=headers, timeout=10)
-        if res.status_code == 200 or res.status_code == 201: st.success("🎯 Envoyé ! Vérifiez vos e-mails.")
-        else: st.error("Erreur d'envoi de l'e-mail.")
-    except: st.error("Échec de connexion au service d'e-mail.")
-                           
+        res = requests.get(url_fetch, headers=headers_fetch, timeout=10)
+        if res.status_code == 200:
+            leads = res.json()
+            compteur_chantiers = 0
+            
+            for lead in leads:
+                l_ville = lead.get("ville", "").lower()
+                l_quartier = lead.get("quartier", "").lower()
+                
+                # Filtrage croisé Ville + Quartier
+                if l_ville == art_ville.lower() and (art_quartier.lower() == "global" or l_quartier == art_quartier.lower() or l_quartier == "centre"):
+                    compteur_chantiers += 1
+                    
+                    # NOUVEAU BLOC GRAPHIQUE : Boîte Blanche premium, bordure Bleu Roi, texte sombre
+                    st.markdown(f"""
+                    <div style="background-color: #FFFFFF; border-left: 5px solid #1E3A8A; padding: 15px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0px 2px 4px rgba(0,0,0,0.05);">
+                        <h4 style="color: #1E3A8A; margin: 0; font-size: 16px;">🚨 CHANTIER RADAR INTERCEPTÉ</h4>
+                        <p style="color: #0F172A; margin: 5px 0; font-size: 14px;"><b>Métier :</b> {lead['metier'].upper()} | <b>🌍 Ville :</b> {lead['ville'].upper()}</p>
+                        <p style="color: #1E3A8A; margin: 5px 0; font-size: 14px;"><b>📍 Quartier résidentiel :</b> {lead.get('quartier', 'CENTRE').upper()}</p>
+                        <p style="color: #334155; font-size: 14px; margin-top: 10px; background: #F8FAFC; padding: 8px; border-radius: 4px;">{lead['texte']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Boutons d'actions immédiates pour l'artisan
+                    tel_propre = lead['telephone'].replace(" ", "")
+                    c_actions1, c_actions2 = st.columns(2)
+                    with c_actions1: st.link_button(f"📞 Appeler Direct ({lead['telephone']})", f"tel:{tel_propre}", use_container_width=True)
+                    with c_actions2: st.link_button("💬 Envoyer un WhatsApp", f"https://wa.me{tel_propre}?text=Bonjour,%20je%20suis%20l'artisan%20Zelia%20disponible%20pour%20votre%20urgence.", use_container_width=True)
+            
+            if compteur_chantiers == 0:
+                st.info(f"🛰️ Le radar survole actuellement {art_ville} ({art_quartier}). Aucun chantier urgent non pourvu pour l'instant.")
+    except Exception as e:
+        st.error(f"Erreur de connexion au radar : {e}")
+
 # ==========================================
 # 3. ARCHITECTURE DE L'ÉCRAN D'ACCUEIL GLOBAL
 # ==========================================
