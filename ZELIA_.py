@@ -62,7 +62,7 @@ with onglet_scan:
                 l_ville = lead.get("ville", "").lower().strip()
                 l_quartier = lead.get("quartier", "").lower().strip()
                 
-                # 🎯 COMPARAISON RADICALE : Si la ville correspond, on affiche TOUT, peu importe le quartier !
+                # Si la ville correspond, on affiche TOUT, peu importe le quartier !
                 if l_ville == S_ville.lower().strip():
                     compteur += 1
                     
@@ -77,14 +77,26 @@ with onglet_scan:
                     """, unsafe_allow_html=True)
                     
                     # Nettoyage chirurgical du numéro pour éviter les bugs d'ouverture d'applications
-                    tel_propre = "".join(c for c in lead['telephone'] if c.isdigit() or c == "+")
+                    tel_client = "".join(c for c in lead['telephone'] if c.isdigit() or c == "+")
+                    
+                    # Préparation du texte de transfert pour l'artisan
+                    texte_transfert = (
+                        f"🚨 OPPORTUNITÉ DE CHANTIER ZELIA GLOBAL 🚨\n\n"
+                        f"Bonjour, j'ai une urgence disponible dans votre secteur :\n"
+                        f"🧑‍🔧 Métier : {S_metier.upper()}\n"
+                        f"🌍 Ville : {l_ville.upper()}\n"
+                        f"📍 Quartier : {l_quartier.upper()}\n\n"
+                        f"Je vous offre ce premier client gratuitement pour tester notre efficacité. Répondez-moi 'OUI' pour recevoir le numéro direct et lancer votre intervention !"
+                    )
+                    msg_encode = urllib.parse.quote(texte_transfert)
                     
                     c1, c2 = st.columns(2)
                     with c1: 
-                        st.link_button(f"📞 Appel direct", f"tel:{tel_propre}", use_container_width=True)
+                        # 🚀 FORMULE HISTORIQUE : Ouvre WhatsApp direct avec le particulier sans page blanche
+                        st.link_button("🟢 WhatsApp Client Direct", f"whatsapp://send?phone={tel_client}", use_container_width=True)
                     with c2: 
-                        # 🚀 OUVERTURE SANS BUG : Lance directement la discussion WhatsApp avec le numéro du bloc
-                        st.link_button("🟢 Discuter sur WhatsApp", f"https://whatsapp.com{tel_propre}", use_container_width=True)
+                        # 🚀 FORMULE HISTORIQUE : Ouvre WhatsApp en mode partage avec le pitch prêt pour l'artisan de ton choix
+                        st.link_button("🔵 Transférer à un Artisan", f"whatsapp://send?text={msg_encode}", use_container_width=True)
 
             if compteur == 0:
                 st.info(f"🛰️ Aucune donnée active trouvée dans la table pour la ville de {S_ville.upper()}.")
@@ -103,7 +115,7 @@ with onglet_ajout:
     with i_c2: v_ville = st.text_input("🌍 Ville d'urgence :", value="Paris", key="p_ville")
     
     v_quartier = st.text_input("📍 Zone / Quartier résidentiel :", value="Centre", key="p_quartier")
-    v_tel = st.text_input("📱 Téléphone du contact :", placeholder="Ex: +33612345678", key="p_tel")
+    v_tel = st.text_input("📱 Téléphone du contact :", placeholder="Ex: +33612345678", key="key_tel")
     v_desc = st.text_area("📝 Contenu brut de l'annonce ou de l'urgence :", key="p_desc")
     
     if st.button("🚀 Pousser dans la Table Supabase", use_container_width=True):
@@ -113,4 +125,4 @@ with onglet_ajout:
             texte_final = f"🚨 ACCÈS DIRECT COMMANDER:\n📢 Urgence {v_metier} à {v_ville} ({v_quartier})\n📝 Détails : {v_desc}"
             injecter_dans_supabase(v_metier, v_ville, v_quartier, texte_final, v_tel, "https://tinyurl.com", "Zelia Control Dashboard")
             st.success(f"✅ Lead enregistré avec succès pour {v_ville.upper()} !")
-    
+                           
