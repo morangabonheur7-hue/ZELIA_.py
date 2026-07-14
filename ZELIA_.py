@@ -9,6 +9,10 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 st.set_page_config(page_title="ZELIA GLOBAL - Radar de Dépannage Urbain", page_icon="🚨", layout="centered")
 
+# 🔥 CORRECTIF CRITIQUE : Initialisation sécurisée de la mémoire de connexion pour éviter l'AttributeError
+if "authentifie" not in st.session_state:
+    st.session_state.authentifie = False
+
 def lien_deja_scrappe(lien):
     url = f"{SUPABASE_URL}/rest/v1/leads?lien=eq.{urllib.parse.quote(lien)}"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
