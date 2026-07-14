@@ -190,105 +190,99 @@ elif st.session_state.role == "artisan":
             st.error(f"Erreur réseau : {e}")
 
 # ==========================================
-# 4. LE TABLEAU DE BORD ARTISAN PRO VERROUILLÉ & DOUBLE CALCULATEUR
+# BLOC 4 : LE TABLEAU DE BORD ARTISAN PRO SÉCURISÉ & VERROU SMMA
 # ==========================================
-else:
-    jours_restants_essai = 0
-    jours_restants_premium = 0
-    essai_valide = False
-    premium_valide = False
-    date_aujourdhui = datetime.datetime.utcnow().date()
+    # Le code s'exécute une fois que l'artisan est authentifié avec succès
+    art = st.session_state.artisan_data
     
-    # 1. CALCULATEUR PREMIUM AUTONOME (30 JOURS MENSUELS)
-    if st.session_state.user_statut == "actif" and st.session_state.user_date_activation and st.session_state.user_date_activation != "None":
-        try:
-            # Nettoyage chirurgical pour ne garder QUE les 10 premiers caractères (AAAA-MM-JJ)
-            date_nettoye = st.session_state.user_date_activation.strip()[:10]
-            date_activation = datetime.datetime.strptime(date_nettoye, "%Y-%m-%d").date()
-            jours_ecoules_premium = (date_aujourdhui - date_activation).days
-            jours_restants_premium = 30 - jours_ecoules_premium
-            if jours_restants_premium > 0:
-                premium_valide = True
-        except:
-            premium_valide = False
-            
-    # 2. CALCULATEUR D'ESSAI GRATUIT (12 JOURS AUTOMATIQUES)
-    if st.session_state.user_date_creation and not premium_valide:
-        try:
-            # Nettoyage chirurgical de la date de création Supabase
-            date_nettoye_crea = st.session_state.user_date_creation.strip()[:10]
-            date_inscription = datetime.datetime.strptime(date_nettoye_crea, "%Y-%m-%d").date()
-            jours_ecoules_essai = (date_aujourdhui - date_inscription).days
-            jours_restants_essai = 12 - jours_ecoules_essai
-            if jours_restants_essai > 0:
-                essai_valide = True
-        except:
-            essai_valide = False
+    # 🎯 FIX DEFINITIF BRAZZAVILLE : Lecture des données sans conflits de variables
+    art_email = art.get("email", "").strip()
+    art_metier = art.get("metier", "Plombier").strip()
+    art_ville = art.get("ville", "Brazzaville").strip()
+    art_quartier = art.get("quartier", "Global").strip()
+    art_statut = art.get("statut", "inactif").strip().lower()
 
-    # ARCHITECTURE VISUELLE DU TABLEAU DE BORD DE L'ARTISAN CONNECTÉ
-    st.header(f"📬 Radar de chantiers en direct : {st.session_state.user_ville.upper()}")
-    st.write(f"🧑‍🔧 Artisan : **{st.session_state.user_metier.upper()}** | 📧 {st.session_state.user_email}")
+    # ARCHITECTURE VISUELLE DU TABLEAU DE BORD BLEU ROI PREMIUM
+    st.header(f"📬 Radar de chantiers en direct : {art_ville.upper()}")
+    st.write(f"🧑‍🔧 Artisan : **{art_metier.upper()}** | 📧 {art_email}")
     
-    # AFFICHAGE DYNAMIQUE DU STATUT ET DU TEMPS RESTANT
-    if premium_valide:
-        st.success(f"👑 Compte Premium ZELIA PRO — Il vous reste **{jours_restants_premium} jours** d'accès illimité.")
-    elif essai_valide:
-        st.info(f"⏳ Période d'essai gratuite active : Il vous reste **{jours_restants_essai} jours** d'utilisation.")
+    # AFFICHAGE DYNAMIQUE DU STATUT PROFESSIONNEL EN UN CLIC
+    if art_statut == "actif":
+        st.success("👑 Votre Accès Premium ZELIA PRO est actuellement activé.")
     else:
-        st.error("🔒 Période d'accès expiré (0 jours restants).")
+        st.warning("⚠️ Mode Découverte — Verrou d'activation commercial activé.")
 
     st.write("---")
 
-    # LE VERROU ANTI-TRICHEUR INTERNATIONALE (Bloque si Essai FINI et Premium FINI)
-    if not premium_valide and not essai_valide:
-        st.error("🔒 ACCÈS LIMITÉ — Réabonnement Requis")
-        st.write("Votre période d'accès gratuit ou payant est terminée. Pour débloquer à nouveau l'accès instantané aux demandes urgentes de votre secteur, veuillez renouveler votre accès professionnel.")
-        
-        # Le signal automatique blindé qui t'envoie toute la fiche de l'artisan par WhatsApp
-        texte_signal = (
-            f"🚨 ALERTE RÉABONNEMENT ZELIA 🚨\n\n"
-            f"L'artisan suivant souhaite activer son accès Pro :\n"
-            f"📧 E-mail : {st.session_state.user_email}\n"
-            f"🧑‍🔧 Métier : {st.session_state.user_metier.upper()}\n"
-            f"🌍 Ville : {st.session_state.user_ville.upper()}"
-        )
-        msg_encode = urllib.parse.quote(texte_signal)
-        st.link_button("💳 Activer mon accès Pro Zelia (29,99€ / mois)", f"whatsapp://send?phone=242055967601&text={msg_encode}", use_container_width=True, type="primary")
-    else:
-        # L'accès s'ouvre si l'un des deux chronomètres est valide
-        leads_bruts = extraire_leads_strict(st.session_state.user_metier, st.session_state.user_ville)
-        if not leads_bruts:
-            st.warning("🔎 Aucun chantier direct disponible pour le moment dans votre ville. Le système est en veille permanente.")
-        else:
-            st.success(f"🔔 {len(leads_bruts)} demandes d'urgences interceptées !")
-            for idx, client in enumerate(leads_bruts):
-                with st.container(border=True):
-                    st.markdown("### 📍 Alerte Client Direct (Zelia Sniper)")
-                    st.write(client.get("texte", "Pas de détails."))
+    # 📊 LECTURE ET FILTRAGE CHIRURGICAL DES LEADS DEPUIS SUPABASE
+    st.markdown("### 📊 Chantiers disponibles en direct sur votre secteur :")
+    url_fetch = f"{SUPABASE_URL}/rest/v1/leads?metier=eq.{art_metier.lower()}&order=id.desc"
+    headers_fetch = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    
+    try:
+        res = requests.get(url_fetch, headers=headers_fetch, timeout=10)
+        if res.status_code == 200:
+            leads = res.json()
+            compteur_chantiers = 0
+            
+            for lead in leads:
+                l_ville = lead.get("ville", "").lower()
+                l_quartier = lead.get("quartier", "").lower()
+                
+                # Filtrage croisé Ville identique + (Quartier identique OU Artisan global)
+                if l_ville == art_ville.lower() and (art_quartier.lower() == "global" or l_quartier == art_quartier.lower() or l_quartier == "centre"):
+                    compteur_chantiers += 1
                     
-                    pitch = f"Bonjour, je suis le {st.session_state.user_metier} disponible immédiatement à {st.session_state.user_ville.upper()} pour votre urgence. Je peux intervenir tout de suite !"
-                    st.text_area("💡 Votre réponse rapide pré-rédigée :", value=pitch, height=70, key=f"pitch_{idx}", disabled=True)
+                    # BLOC GRAPHIQUE PREMIUM : Boîte Blanche, bordure Bleu Roi, texte sombre
+                    st.markdown(f"""
+                    <div style="background-color: #FFFFFF; border-left: 5px solid #1E3A8A; padding: 15px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0px 2px 4px rgba(0,0,0,0.05);">
+                        <h4 style="color: #1E3A8A; margin: 0; font-size: 16px;">🚨 CHANTIER RADAR INTERCEPTÉ</h4>
+                        <p style="color: #0F172A; margin: 5px 0; font-size: 14px;"><b>Métier :</b> {lead['metier'].upper()} | <b>🌍 Ville :</b> {lead['ville'].upper()}</p>
+                        <p style="color: #1E3A8A; margin: 5px 0; font-size: 14px;"><b>📍 Quartier résidentiel :</b> {l_quartier.upper()}</p>
+                        <p style="color: #334155; font-size: 14px; margin-top: 10px; background: #F8FAFC; padding: 8px; border-radius: 4px;">{lead['texte']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                     
-                    # Double option d'appel direct
-                    num_client = client.get("telephone", "").strip()
-                    if num_client:
-                        num_propre = "".join(c for c in num_client if c.isdigit())
+                    # 🔒 LE VERROU ANTI-TRICHEUR ET STRATÉGIE DE REVENU SMMA AGRESSIVE
+                    if art_statut != "actif":
+                        st.error("🔒 CONTACT VERROUILLÉ — Abonnement Requis")
+                        st.write("Ce chantier est 100% réel et exclusif à votre secteur. Pour débloquer instantanément le numéro de téléphone et appeler ce particulier pour lancer l'intervention, veuillez valider votre accès professionnel.")
+                        
+                        # Signal automatique WhatsApp crypté vers ton téléphone de Brazzaville (+242 05 596 7601)
+                        texte_signal = (
+                            f"🚨 ACTIVATION COMPTE ZELIA PRO 🚨\n\n"
+                            f"Je souhaite débloquer le numéro du client et activer mon abonnement :\n"
+                            f"📧 Mon E-mail : {art_email}\n"
+                            f"🧑‍🔧 Métier : {art_metier.upper()}\n"
+                            f"🌍 Ville de couverture : {art_ville.upper()}"
+                        )
+                        msg_encode = urllib.parse.quote(texte_signal)
+                        st.link_button("💳 Débloquer le Contact et Activer Zelia Pro (29,99€)", f"whatsapp://send?phone=242055967601&text={msg_encode}", use_container_width=True, type="primary")
+                    
+                    # 🔓 L'ACCÈS S'OUVRE UNIQUEMENT SI L'ARTISAN EST ACTIF DANS SUPABASE
+                    else:
+                        pitch = f"Bonjour, je suis le {art_metier} disponible immédiatement à {art_ville.upper()} pour votre urgence."
+                        tel_propre = lead['telephone'].replace(" ", "")
                         
                         btn_col1, btn_col2 = st.columns(2)
                         with btn_col1:
-                            st.link_button("📞 Appel Normal Direct", f"tel:{num_propre}", use_container_width=True)
+                            st.link_button(f"📞 Appel Normal ({lead['telephone']})", f"tel:{tel_propre}", use_container_width=True)
                         with btn_col2:
-                            st.link_button("🟢 WhatsApp Message", f"whatsapp://send?phone={num_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
+                            st.link_button("🟢 WhatsApp Message", f"whatsapp://send?phone={tel_propre}&text={urllib.parse.quote(pitch)}", use_container_width=True)
+            
+            if compteur_chantiers == 0:
+                st.info(f"🛰️ Le radar survole actuellement {art_ville.upper()} ({art_quartier.upper()}). Aucun chantier urgent non pourvu pour l'instant.")
+                
+    except Exception as e:
+        st.error(f"Erreur de synchronisation avec le radar : {e}")
 
     st.write("---")
     if st.button("🚪 Se déconnecter de l'Espace Pro", use_container_width=True):
         st.session_state.authentifie = False
-        st.session_state.user_email = ""
-        st.session_state.user_statut = "inactif"
-        st.session_state.user_date_creation = ""
-        st.session_state.user_date_activation = ""
+        st.session_state.role = None
+        st.session_state.artisan_data = {}
         st.rerun()
-        
+    
 # ==========================================
 # 5. ASSISTANCE TECHNIQUE & SUPPORT
 # ==========================================
